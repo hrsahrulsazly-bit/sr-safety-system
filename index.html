@@ -55,7 +55,8 @@ body.dark .btn.ghost{color:#4ade80;border-color:#4ade80}
 .alert.ok{background:#dcfce7;color:#166534;border:1px solid #86efac}
 .chart{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:10px}
 .chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
-.chart .col>div{width:100%;max-width:44px;background:linear-gradient(180deg,#2fa77f,var(--pri));border-radius:5px 5px 0 0;min-height:2px}
+.chart .col .barWrap{flex:1 1 0;display:flex;align-items:flex-end;justify-content:center;width:100%;min-height:0}
+.chart .col .barWrap>div{width:100%;max-width:44px;background:linear-gradient(180deg,#2fa77f,var(--pri));border-radius:5px 5px 0 0;min-height:2px}
 .chart .col span{font-size:10px;color:var(--mut);margin-top:4px}
 .chart .col b{font-size:10px;color:var(--pri2)}
 .stars{color:var(--acc);font-size:15px;letter-spacing:1px}
@@ -1086,7 +1087,7 @@ function renderDash(){
  /* chart */
  const byM=Array(12).fill(0);mhY.forEach(r=>{byM[+r.bulan.split('-')[1]-1]+=r.jam});
  const mx=Math.max(...byM,1);
- $('dChart').innerHTML=byM.map((v,i)=>`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div style="height:${Math.round(v/mx*100)}%"></div><span>${BLN[i]}</span></div>`).join('');
+ $('dChart').innerHTML=byM.map((v,i)=>`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div class="barWrap"><div style="height:${Math.round(v/mx*100)}%"></div></div><span>${BLN[i]}</span></div>`).join('');
  /* upcoming */
  const today=new Date().toISOString().slice(0,10);
  const up=progFiltered.filter(p=>p.status==='Dirancang'&&p.tarikh>=today).sort((a,b)=>a.tarikh.localeCompare(b.tarikh)).slice(0,5);
