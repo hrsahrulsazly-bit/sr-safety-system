@@ -199,6 +199,13 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div class="sub" style="margin-top:8px" data-i18n="mh_note">⚠️ Manhour report perlu dimasukkan sebelum 7hb bulan berikutnya (cth: manhour June — sebelum 7hb July).</div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('manhours')">⬇ Export Excel (CSV)</button><span class="sub"><span data-i18n="cum_year">Kumulatif tahun ini:</span> <b id="mhYTD">0</b> / <span id="mhTgt">1,200,000</span></span></div>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="mhMonthFilter" onchange="renderMH()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="mhSiteFilter" onchange="renderMH()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <input type="text" id="mhSearch" oninput="renderMH()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
   <div class="tblwrap"><table id="mhTbl"></table></div>
 </div>
 
@@ -216,6 +223,13 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div class="sub" style="margin-top:8px" data-i18n="rp_note">⚠️ Upload report PDF sebelum 7hb bulan berikutnya (cth: report June — sebelum 7hb July). Saiz maksimum: 3MB.</div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('reports')" data-i18n="export_list">⬇ Export Senarai (CSV)</button></div>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="rpMonthFilter" onchange="renderRP()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="rpSiteFilter" onchange="renderRP()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <input type="text" id="rpSearch" oninput="renderRP()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
   <div class="tblwrap"><table id="rpTbl"></table></div>
 </div>
 
@@ -264,6 +278,20 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div class="tools"><button class="btn" onclick="addPG()" data-i18n="pg_save">+ Simpan Program</button></div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('programs')">⬇ Export Excel (CSV)</button></div>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="pgMonthFilter" onchange="renderPG()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="pgSiteFilter" onchange="renderPG()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="f_status">Status:</label>
+    <select id="pgStatusFilter" onchange="renderPG()" style="width:auto;min-width:130px">
+      <option value="" data-i18n="f_all_status">Semua Status</option>
+      <option value="Dirancang" data-i18n="st_plan">Dirancang</option>
+      <option value="Selesai" data-i18n="st_done">Selesai</option>
+      <option value="Ditangguh" data-i18n="st_post">Ditangguh</option>
+    </select>
+    <input type="text" id="pgSearch" oninput="renderPG()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
   <div class="tblwrap"><table id="pgTbl"></table></div>
 </div>
 
@@ -387,6 +415,8 @@ d_chart:['Manhour Bulanan','Monthly Manhours'],
 d_next:['Program Akan Datang','Upcoming Programs'],
 d_filter:['Tapis Site:','Filter Site:'],d_filter_all:['Semua Site','All Sites'],
 d_filter_mth:['Tapis Bulan:','Filter Month:'],
+f_all_month:['Semua Bulan','All Months'],f_search_ph:['Cari...','Search...'],
+f_status:['Status:','Status:'],f_all_status:['Semua Status','All Status'],
 d_site:['Status Report Bulanan Mengikut Site (Deadline: sebelum 7hb bulan berikutnya)','Monthly Report Status by Site (Deadline: before the 7th of the following month)'],
 of_target:['daripada target tahunan','of annual target'],
 from_sites:['daripada {n} site telah upload report {m}','of {n} sites have uploaded the {m} report'],
@@ -582,8 +612,13 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const mLbl=m=>{if(!m)return'';const[y,b]=m.split('-');return BLN[+b-1]+' '+y};
 const uid=()=>Date.now()+''+Math.floor(Math.random()*999);
 const thisYear=new Date().getFullYear();
+/* Tarikh/bulan tempatan TANPA toISOString() — toISOString() tukar ke UTC, jadi
+ * sebelum ~8 pagi (waktu MY, UTC+8) ia "jatuh" ke hari/bulan sebelumnya secara silap. */
+const pad2=n=>String(n).padStart(2,'0');
+const todayStr=(d)=>{d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())};
+const ymStr=(d)=>{d=d||new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)};
 /* bulan pelaporan = bulan sebelumnya (report June dihantar sebelum 7hb July) */
-function prevMonth(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)}
+function prevMonth(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return ymStr(d)}
 
 /* nav */
 function go(p,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(p).classList.add('active');
@@ -612,7 +647,12 @@ function addMH(){const b=$('mhBulan').value,s=$('mhSite').value,p=+$('mhPekerja'
 function delItem(arr,id){if(!confirm(T('a_del')))return;
  if(!D.tombstones)D.tombstones=[];D.tombstones.push({ent:arr,id,ts:Date.now()});
  D[arr]=D[arr].filter(x=>x.id!==id);save()}
-function renderMH(){const rows=[...D.manhours].sort((a,b)=>b.bulan.localeCompare(a.bulan));
+function renderMH(){const mf=$('mhMonthFilter')?$('mhMonthFilter').value:'',sf=$('mhSiteFilter')?$('mhSiteFilter').value:'',
+  q=($('mhSearch')?$('mhSearch').value:'').trim().toLowerCase();
+ let rows=[...D.manhours].sort((a,b)=>b.bulan.localeCompare(a.bulan));
+ if(mf)rows=rows.filter(r=>r.bulan===mf);
+ if(sf)rows=rows.filter(r=>r.site===sf);
+ if(q)rows=rows.filter(r=>[r.pic,r.remark,r.site].some(v=>String(v||'').toLowerCase().includes(q)));
  $('mhTbl').innerHTML=`<tr><th>${T('th_bulan')}</th><th>Site</th><th>${T('th_pekerja')}</th><th>Manhour</th><th>${T('th_lti')}</th><th>${T('lbl_pic')}</th><th>${T('th_remark')}</th><th></th></tr>`+
   rows.map(r=>`<tr><td>${mLbl(r.bulan)}</td><td>${esc(r.site)}</td><td>${fmt(r.pekerja)}</td><td><b>${fmt(r.jam)}</b></td>
   <td>${r.lti?`<span class="tag r">${fmt(r.lti)}</span>`:`<span class="tag g">${T('lti_none')}</span>`}</td>
@@ -630,13 +670,18 @@ function addRP(){const b=$('rpBulan').value,s=$('rpSite').value,pic=$('rpPIC').v
  if(f.type!=='application/pdf')return alert(T('a_rp_pdf'));
  if(f.size>3*1024*1024)return alert('Max 3MB — '+(f.size/1048576).toFixed(1)+'MB');
  const rd=new FileReader();
- rd.onload=e=>{const r={id:uid(),bulan:b,site:s,pic,fname:f.name,fsize:f.size,data:e.target.result,tarikh:new Date().toISOString().slice(0,10),updatedAt:Date.now()};
+ rd.onload=e=>{const r={id:uid(),bulan:b,site:s,pic,fname:f.name,fsize:f.size,data:e.target.result,tarikh:todayStr(),updatedAt:Date.now()};
   const i=D.reports.findIndex(x=>x.bulan===b&&x.site===s);
   if(i>=0){if(!confirm(T('a_rp_exist')))return;D.reports[i]=r}else D.reports.push(r);
   try{save()}catch(err){D.reports=D.reports.filter(x=>x.id!==r.id);return alert(T('a_full'))}
   $('rpFail').value='';$('rpPIC').value='';alert(T('a_rp_ok'))};
  rd.readAsDataURL(f)}
-function renderRP(){const rows=[...D.reports].sort((a,b)=>b.bulan.localeCompare(a.bulan));
+function renderRP(){const mf=$('rpMonthFilter')?$('rpMonthFilter').value:'',sf=$('rpSiteFilter')?$('rpSiteFilter').value:'',
+  q=($('rpSearch')?$('rpSearch').value:'').trim().toLowerCase();
+ let rows=[...D.reports].sort((a,b)=>b.bulan.localeCompare(a.bulan));
+ if(mf)rows=rows.filter(r=>r.bulan===mf);
+ if(sf)rows=rows.filter(r=>r.site===sf);
+ if(q)rows=rows.filter(r=>[r.pic,r.site,r.fname].some(v=>String(v||'').toLowerCase().includes(q)));
  $('rpTbl').innerHTML=`<tr><th>${T('th_bulan')}</th><th>${T('th_lok')}</th><th>${T('lbl_pic')}</th><th>${T('th_pdf')}</th><th>${T('th_updt')}</th><th></th></tr>`+
   rows.map(r=>`<tr><td>${mLbl(r.bulan)}</td><td>${esc(r.site)}</td><td>${esc(r.pic)}</td>
   <td>📄 ${esc(r.fname)} <span class="sub">(${(r.fsize/1024).toFixed(0)} KB)</span></td><td>${r.tarikh||'-'}</td>
@@ -909,7 +954,7 @@ function submitSV(){const jenis=$('svJenis').value||'site';const tpl=SV_TPL[jeni
  if(unanswered&&!confirm(T('a_sv_un').replace('{n}',unanswered)))return;
  let good=0,tot=0;tpl.forEach((s,i)=>s.items.forEach((it,j)=>{if(it.t!=='yn')return;const a=SVW[i][j].a;
   if(a==='Yes'||a==='No'){tot++;if((a==='Yes'&&!it.neg)||(a==='No'&&it.neg))good++}}));
- const rec={id:uid(),jenis,tarikh:new Date().toISOString().slice(0,10),co:$('svCo').value,branch:$('svBranch').value,
+ const rec={id:uid(),jenis,tarikh:todayStr(),co:$('svCo').value,branch:$('svBranch').value,
   scope:$('svScope').value,lok:$('svLok').value,site:$('svSite').value,auditor:$('svAuditor').value,pic:$('svPIC').value,
   findings:$('svFindings').value,good,tot,updatedAt:Date.now(),
   data:tpl.map((s,i)=>({name:s.name,items:s.items.map((it,j)=>({q:it.q,t:it.t,neg:it.neg||0,...SVW[i][j]}))}))};
@@ -1003,7 +1048,7 @@ function addRW(){if(!EVAL)return;
  if(!userKats(EVAL).includes(kat))return alert(T('a_rw_notallowed'));
  const tot=RWW.reduce((a,b)=>a+b,0);
  D.rewards.push({id:uid(),kat,nama,site:$('rwSite').value,bulan:$('rwBulan').value,
-  by:EVAL.uid,tot,scores:[...RWW],tarikh:new Date().toISOString().slice(0,10),updatedAt:Date.now()});
+  by:EVAL.uid,tot,scores:[...RWW],tarikh:todayStr(),updatedAt:Date.now()});
  save();$('rwNama').value='';buildRW();alert(T('a_rw_ok')+' — '+tot+' pts')}
 function rwKatLbl(k){return k==='worker'?'Best Safety Worker':k==='staff'?'Best Safety Staff':'Best Safety Branch'}
 function renderRW(){const f=$('rwFilter').value;
@@ -1046,7 +1091,13 @@ function addPG(){const n=$('pgNama').value.trim();if(!n||!$('pgTarikh').value)re
  save();$('pgNama').value='';$('pgPIC').value='';$('pgDetail').value='';alert(T('a_pg_ok'))}
 function pgTag(s){return s==='Selesai'?'g':s==='Dirancang'?'b':'y'}
 function pgLbl(s){return s==='Selesai'?T('st_done'):s==='Dirancang'?T('st_plan'):s==='Ditangguh'?T('st_post'):s}
-function renderPG(){const rows=[...D.programs].sort((a,b)=>b.tarikh.localeCompare(a.tarikh));
+function renderPG(){const mf=$('pgMonthFilter')?$('pgMonthFilter').value:'',sf=$('pgSiteFilter')?$('pgSiteFilter').value:'',
+  stf=$('pgStatusFilter')?$('pgStatusFilter').value:'',q=($('pgSearch')?$('pgSearch').value:'').trim().toLowerCase();
+ let rows=[...D.programs].sort((a,b)=>b.tarikh.localeCompare(a.tarikh));
+ if(mf)rows=rows.filter(r=>r.tarikh&&r.tarikh.slice(0,7)===mf);
+ if(sf)rows=rows.filter(r=>r.site===sf);
+ if(stf)rows=rows.filter(r=>r.status===stf);
+ if(q)rows=rows.filter(r=>[r.nama,r.pic,r.jenis,r.detail,r.site].some(v=>String(v||'').toLowerCase().includes(q)));
  $('pgTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>Program</th><th>${T('th_jenis')}</th><th>Site</th><th>PIC</th><th>Status</th><th>${T('th_detail')}</th><th></th></tr>`+
   rows.map(r=>`<tr><td>${r.tarikh}</td><td><b>${esc(r.nama)}</b></td><td>${esc(r.jenis)}</td><td>${esc(r.site)}</td><td>${esc(r.pic)}</td>
   <td><span class="tag ${pgTag(r.status)}">${pgLbl(r.status)}</span></td><td style="max-width:260px">${esc(r.detail)}</td>
@@ -1063,6 +1114,19 @@ function fillDashMonthFilter(){const s=$('dMonthFilter');if(!s)return;const v=s.
  for(let i=0;i<12;i++){opts.push(y+'-'+String(m).padStart(2,'0'));m--;if(m<1){m=12;y--}}
  s.innerHTML=opts.map(ym=>`<option value="${ym}">${mLbl(ym)}</option>`).join('');
  s.value=opts.includes(v)?v:pm}
+/* ===== Filter & carian (Manhour/Report/Program) ===== */
+function fillSiteFilter(id){const s=$(id);if(!s)return;const v=s.value;
+ s.innerHTML=`<option value="">${T('d_filter_all')}</option>`+D.sites.map(x=>`<option>${esc(x)}</option>`).join('');
+ s.value=D.sites.includes(v)?v:''}
+function fillMonthFilter(id,arr,ymOf){const s=$(id);if(!s)return;const v=s.value;
+ const yms=[...new Set(arr.map(ymOf).filter(Boolean))].sort().reverse();
+ s.innerHTML=`<option value="">${T('f_all_month')}</option>`+yms.map(ym=>`<option value="${ym}">${mLbl(ym)}</option>`).join('');
+ s.value=yms.includes(v)?v:''}
+function fillListFilters(){
+ fillSiteFilter('mhSiteFilter');fillSiteFilter('rpSiteFilter');fillSiteFilter('pgSiteFilter');
+ fillMonthFilter('mhMonthFilter',D.manhours,r=>r.bulan);
+ fillMonthFilter('rpMonthFilter',D.reports,r=>r.bulan);
+ fillMonthFilter('pgMonthFilter',D.programs,r=>r.tarikh?r.tarikh.slice(0,7):'')}
 function renderDash(){
  const filterSite=$('dSiteFilter')?$('dSiteFilter').value:'';
  const bySite=arr=>filterSite?arr.filter(r=>r.site===filterSite):arr;
@@ -1089,7 +1153,7 @@ function renderDash(){
  const mx=Math.max(...byM,1);
  $('dChart').innerHTML=byM.map((v,i)=>`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div class="barWrap"><div style="height:${Math.round(v/mx*100)}%"></div></div><span>${BLN[i]}</span></div>`).join('');
  /* upcoming */
- const today=new Date().toISOString().slice(0,10);
+ const today=todayStr();
  const up=progFiltered.filter(p=>p.status==='Dirancang'&&p.tarikh>=today).sort((a,b)=>a.tarikh.localeCompare(b.tarikh)).slice(0,5);
  $('dNext').innerHTML=up.length?up.map(p=>`<div style="padding:7px 0;border-bottom:1px solid var(--bor)"><b>${p.tarikh}</b> — ${esc(p.nama)} <span class="tag b">${esc(p.site)}</span><br><span class="sub">PIC: ${esc(p.pic)||'-'}</span></div>`).join(''):`<span class="sub">${T('d_next_none')}</span>`;
  /* site status table — semak bulan pelaporan (bulan sebelumnya) */
@@ -1116,7 +1180,7 @@ function renderST(){$('stSiteList').innerHTML=D.sites.map((s,i)=>`<div style="di
 function saveTarget(){const v=+$('stTarget').value;if(v>0){D.target=v;D.settingsUpdatedAt=Date.now();save();alert('Target dikemaskini ✔')}}
 function backup(){const a=document.createElement('a');
  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(D,null,1));
- a.download='SRGroup-Safety-Backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+ a.download='SRGroup-Safety-Backup-'+todayStr()+'.json';a.click()}
 function restore(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();
  rd.onload=e=>{try{const x=JSON.parse(e.target.result);if(!x.sites||!x.manhours)throw 0;
   if(confirm('GABUNG dengan data sedia ada? (OK = gabung, Cancel = ganti sepenuhnya)')){
@@ -1144,10 +1208,10 @@ function csv(kind){let head,rows,name;
  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const txt='﻿'+[head,...rows].map(r=>r.map(q).join(',')).join('\r\n');
  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(txt);
- a.download=name+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click()}
+ a.download=name+'-'+todayStr()+'.csv';a.click()}
 
 /* ===== RENDER ALL ===== */
-function renderAll(){fillSites();fillDashFilter();fillDashMonthFilter();renderMH();renderRP();renderSV();renderPG();renderRW();renderUsers();renderDash();renderST()}
+function renderAll(){fillSites();fillDashFilter();fillDashMonthFilter();fillListFilters();renderMH();renderRP();renderSV();renderPG();renderRW();renderUsers();renderDash();renderST()}
 if(!D.inspections)D.inspections=[];
 if(!D.users)D.users=[];if(!D.rewards)D.rewards=[];
 if(!D.tombstones)D.tombstones=[];if(!D.settingsUpdatedAt)D.settingsUpdatedAt=0;
