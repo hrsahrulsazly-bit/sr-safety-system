@@ -259,6 +259,19 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   </div>
   <h2 class="sec" data-i18n="sv_list">Senarai Report Site Visit</h2>
   <div class="tools"><a class="btn ghost sml" href="https://drive.google.com" target="_blank" style="text-decoration:none">☁ Google Drive</a><span class="sub" data-i18n="sv_drive">Selepas jana PDF, upload fail ke Google Drive untuk simpanan pusat.</span></div>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="svMonthFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="svSiteFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="f_type">Jenis:</label>
+    <select id="svJenisFilter" onchange="renderSV()" style="width:auto;min-width:120px">
+      <option value="" data-i18n="f_all_type">Semua Jenis</option>
+      <option value="site" data-i18n="sv_site_opt">Site / Tapak Kerja</option>
+      <option value="store" data-i18n="sv_store_opt">Store / Pejabat</option>
+    </select>
+    <input type="text" id="svSearch" oninput="renderSV()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
   <div class="tblwrap"><table id="svTbl"></table></div>
 </div>
 
@@ -340,6 +353,13 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       <option value="branch">Best Safety Branch</option></select>
     <button class="btn ghost sml" onclick="csv('rewards')">⬇ Export Excel (CSV)</button>
   </div>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="rwMonthFilter" onchange="renderRW()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="rwSiteFilter" onchange="renderRW()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <input type="text" id="rwSearch" oninput="renderRW()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
   <div class="tblwrap"><table id="rwTbl"></table></div>
 </div>
 
@@ -417,6 +437,7 @@ d_filter:['Tapis Site:','Filter Site:'],d_filter_all:['Semua Site','All Sites'],
 d_filter_mth:['Tapis Bulan:','Filter Month:'],
 f_all_month:['Semua Bulan','All Months'],f_search_ph:['Cari...','Search...'],
 f_status:['Status:','Status:'],f_all_status:['Semua Status','All Status'],
+f_type:['Jenis:','Type:'],f_all_type:['Semua Jenis','All Types'],
 d_site:['Status Report Bulanan Mengikut Site (Deadline: sebelum 7hb bulan berikutnya)','Monthly Report Status by Site (Deadline: before the 7th of the following month)'],
 of_target:['daripada target tahunan','of annual target'],
 from_sites:['daripada {n} site telah upload report {m}','of {n} sites have uploaded the {m} report'],
@@ -965,7 +986,13 @@ function submitSV(){const jenis=$('svJenis').value||'site';const tpl=SV_TPL[jeni
  alert(T('a_sv_ok'));
  viewSV(rec.id);
  $('svFindings').value='';$('svScope').value='';$('svLok').value='';buildSV()}
-function renderSV(){const rows=[...(D.inspections||[])].sort((a,b)=>b.tarikh.localeCompare(a.tarikh));
+function renderSV(){const mf=$('svMonthFilter')?$('svMonthFilter').value:'',sf=$('svSiteFilter')?$('svSiteFilter').value:'',
+  jf=$('svJenisFilter')?$('svJenisFilter').value:'',q=($('svSearch')?$('svSearch').value:'').trim().toLowerCase();
+ let rows=[...(D.inspections||[])].sort((a,b)=>b.tarikh.localeCompare(a.tarikh));
+ if(mf)rows=rows.filter(r=>r.tarikh&&r.tarikh.slice(0,7)===mf);
+ if(sf)rows=rows.filter(r=>r.site===sf);
+ if(jf)rows=rows.filter(r=>r.jenis===jf);
+ if(q)rows=rows.filter(r=>[r.auditor,r.pic,r.site].some(v=>String(v||'').toLowerCase().includes(q)));
  $('svTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>${T('th_jenis')}</th><th>Site</th><th>Auditor</th><th>PIC</th><th>${T('th_skor')}</th><th></th></tr>`+
   rows.map(r=>{const pct=r.tot?Math.round(r.good/r.tot*100):0;
   return`<tr><td>${r.tarikh}</td><td><span class="tag b">${r.jenis==='site'?'Site':T('sv_store_opt')}</span></td>
@@ -1052,7 +1079,12 @@ function addRW(){if(!EVAL)return;
  save();$('rwNama').value='';buildRW();alert(T('a_rw_ok')+' — '+tot+' pts')}
 function rwKatLbl(k){return k==='worker'?'Best Safety Worker':k==='staff'?'Best Safety Staff':'Best Safety Branch'}
 function renderRW(){const f=$('rwFilter').value;
- const rows=(D.rewards||[]).filter(r=>!f||r.kat===f).sort((a,b)=>b.tot-a.tot);
+ const mf=$('rwMonthFilter')?$('rwMonthFilter').value:'',sf=$('rwSiteFilter')?$('rwSiteFilter').value:'',
+  q=($('rwSearch')?$('rwSearch').value:'').trim().toLowerCase();
+ let rows=(D.rewards||[]).filter(r=>!f||r.kat===f).sort((a,b)=>b.tot-a.tot);
+ if(mf)rows=rows.filter(r=>r.bulan===mf);
+ if(sf)rows=rows.filter(r=>r.site===sf);
+ if(q)rows=rows.filter(r=>[r.nama,r.by].some(v=>String(v||'').toLowerCase().includes(q)));
  $('rwTbl').innerHTML=`<tr><th>#</th><th>${T('rw_nama')}</th><th>${T('rw_kat')}</th><th>Site</th><th>${T('th_bulan')}</th><th>${T('rw_by')}</th><th>${T('th_tarikh')}</th><th>Pts</th><th></th></tr>`+
   rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td><b>${esc(r.nama)}</b></td><td><span class="tag b">${rwKatLbl(r.kat)}</span></td>
   <td>${esc(r.site)}</td><td>${mLbl(r.bulan)}</td><td>${esc(r.by)}</td><td>${r.tarikh}</td>
@@ -1124,9 +1156,12 @@ function fillMonthFilter(id,arr,ymOf){const s=$(id);if(!s)return;const v=s.value
  s.value=yms.includes(v)?v:''}
 function fillListFilters(){
  fillSiteFilter('mhSiteFilter');fillSiteFilter('rpSiteFilter');fillSiteFilter('pgSiteFilter');
+ fillSiteFilter('svSiteFilter');fillSiteFilter('rwSiteFilter');
  fillMonthFilter('mhMonthFilter',D.manhours,r=>r.bulan);
  fillMonthFilter('rpMonthFilter',D.reports,r=>r.bulan);
- fillMonthFilter('pgMonthFilter',D.programs,r=>r.tarikh?r.tarikh.slice(0,7):'')}
+ fillMonthFilter('pgMonthFilter',D.programs,r=>r.tarikh?r.tarikh.slice(0,7):'');
+ fillMonthFilter('svMonthFilter',D.inspections||[],r=>r.tarikh?r.tarikh.slice(0,7):'');
+ fillMonthFilter('rwMonthFilter',D.rewards||[],r=>r.bulan)}
 function renderDash(){
  const filterSite=$('dSiteFilter')?$('dSiteFilter').value:'';
  const bySite=arr=>filterSite?arr.filter(r=>r.site===filterSite):arr;
