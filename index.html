@@ -240,10 +240,10 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div class="form">
       <div><label data-i18n="sv_type">Jenis Checklist</label><select id="svJenis" onchange="buildSV()"><option value="site" data-i18n="sv_site_opt">Site / Tapak Kerja</option><option value="store" data-i18n="sv_store_opt">Store / Pejabat</option></select></div>
       <div><label>Company</label><input type="text" id="svCo" value="SR Group"></div>
-      <div><label>Office Branch</label><input type="text" id="svBranch" placeholder="cth: OPJ"></div>
+      <div><label data-i18n="lbl_site">Site / Projek</label><input type="text" id="svBranch" placeholder="Nama Site / Projek"></div>
       <div><label>Type/Scope of Work</label><input type="text" id="svScope" placeholder="cth: Excavation and Piping Work"></div>
       <div><label data-i18n="sv_lok">Lokasi</label><input type="text" id="svLok" data-i18n-ph="sv_lok_ph" placeholder="Alamat / nama tapak"></div>
-      <div><label data-i18n="lbl_site">Site / Projek</label><select id="svSite"></select></div>
+      <div><label>Office Branch</label><select id="svSite"></select></div>
       <div><label>Conducted By (Auditor)</label><input type="text" id="svAuditor" placeholder="Nama auditor"></div>
       <div><label>Person In Charge (PIC)</label><input type="text" id="svPIC" placeholder="Nama PIC"></div>
     </div>
@@ -864,7 +864,7 @@ function pdfLayoutInspection(r){
  const pct=r.tot?Math.round(r.good/r.tot*100):0;
  const infoRows=[
   ['Score',`${r.good} / ${r.tot} (${pct}%)`,'Tarikh',r.tarikh||''],
-  ['Office Branch',r.branch||'-','Site / Projek',r.site||''],
+  ['Site / Projek',r.branch||'-','Office Branch',r.site||''],
   ['Scope',r.scope||'-','Lokasi',r.lok||'-'],
   ['Conducted By',r.auditor||'','Person In Charge',r.pic||'']
  ];
