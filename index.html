@@ -258,7 +258,6 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     </div>
   </div>
   <h2 class="sec" data-i18n="sv_list">Senarai Report Site Visit</h2>
-  <div class="tools"><a class="btn ghost sml" href="https://drive.google.com" target="_blank" style="text-decoration:none">☁ Google Drive</a><span class="sub" data-i18n="sv_drive">Selepas jana PDF, upload fail ke Google Drive untuk simpanan pusat.</span></div>
   <div class="tools">
     <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
     <select id="svMonthFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
@@ -271,6 +270,10 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       <option value="store" data-i18n="sv_store_opt">Store / Pejabat</option>
     </select>
     <input type="text" id="svSearch" oninput="renderSV()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
+  <div class="tools">
+    <button class="btn ghost sml" onclick="mergeSelectedSV()" data-i18n="sv_merge_btn">📎 Cantumkan PDF Terpilih</button>
+    <span class="sub" id="svMergeStatus" data-i18n="sv_merge_hint">Tanda (✓) report di senarai bawah, kemudian klik butang ini.</span>
   </div>
   <div class="tblwrap"><table id="svTbl"></table></div>
 </div>
@@ -470,7 +473,15 @@ sv_store_opt:['Store / Pejabat','Store / Office'],sv_lok:['Lokasi','Location'],
 sv_lok_ph:['Alamat / nama tapak','Address / site name'],
 sv_submit:['✔ Submit & Jana PDF','✔ Submit & Generate PDF'],
 sv_list:['Senarai Report Site Visit','Site Visit Report List'],
-sv_drive:['Selepas jana PDF, upload fail ke Google Drive untuk simpanan pusat.','After generating the PDF, upload it to Google Drive for central storage.'],
+sv_merge_btn:['📎 Cantumkan PDF Terpilih','📎 Merge Selected PDF'],
+sv_merge_hint:['Tanda (✓) report di senarai bawah, kemudian klik butang ini.','Tick (✓) the reports below, then click this button.'],
+sv_merge_working:['⏳ Mencantumkan PDF...','⏳ Merging PDF...'],
+sv_merge_done:['✔ {n} report dicantum jadi 1 PDF.','✔ {n} reports merged into 1 PDF.'],
+a_sv_merge_none:['Sila tanda sekurang-kurangnya 1 report dahulu.','Please tick at least 1 report first.'],
+a_sv_merge_missing:['PDF untuk "{s}" tiada (tak jumpa tempatan atau di Drive) — dilangkau.','PDF for "{s}" not found (missing locally or on Drive) — skipped.'],
+a_sv_merge_fail:['Tiada PDF berjaya dicantum.','No PDF was successfully merged.'],
+a_sv_merge_err:['Ralat mencantum PDF','Error merging PDF'],
+a_sv_merge_noapi:['Pelayan Pusat belum disambung — tak boleh ambil PDF dari Drive.','Central Server not connected — cannot fetch PDF from Drive.'],
 photo:['📷 Gambar','📷 Photo'],photo_cam:['📷 Kamera','📷 Camera'],photo_gal:['🖼 Galeri','🖼 Gallery'],note_ph:['Nota (jika ada)...','Note (if any)...'],ans_ph:['Jawapan...','Answer...'],
 find_ph:['Penemuan, komen dan cadangan...','Findings, comments and recommendations...'],
 sv_score:['Skor semasa:','Current score:'],
@@ -834,6 +845,9 @@ function svThumbs(i,j){$('svth_'+i+'_'+j).innerHTML=SVW[i][j].ph.map((p,k)=>
 function pdfEsc(s){return String(s??'').replace(/[\\()]/g,c=>'\\'+c).replace(/[^\x20-\x7E]/g,c=>c.charCodeAt(0)<256?c:'?')}
 function b64ToBytes(b64){const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return arr}
 function strToLatin1Bytes(s){const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i)&0xFF;return a}
+function latin1BytesToStr(bytes){let s='';const chunk=0x8000;
+ for(let i=0;i<bytes.length;i+=chunk)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));
+ return s}
 function bytesToBase64(bytes){let bin='';const chunk=0x8000;
  for(let i=0;i<bytes.length;i+=chunk)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));
  return btoa(bin)}
@@ -913,7 +927,7 @@ function pdfSerialize(pages){
  objN=4; // reserve 1-4
  const pageObjNums=[],contentObjNums=[],pageImgs=[];
  pages.forEach(pg=>{
-  const imgs=pg.images.map((im,i)=>({name:'Im'+i,objNum:++objN,im}));
+  const imgs=(pg.images||[]).map((im,i)=>({name:im.name||('Im'+i),objNum:++objN,im}));
   pageImgs.push(imgs);
   contentObjNums.push(++objN);
   pageObjNums.push(++objN);
@@ -931,13 +945,15 @@ function pdfSerialize(pages){
    offsets[objNum]=len;
    pushStr(`${objNum} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${Math.round(im.natW)} /Height ${Math.round(im.natH)} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>\nstream\n`);
    pushBytes(im.bytes);pushStr('\nendstream\nendobj\n')});
-  let ops='';
-  pg.rects.forEach(rc=>{ops+=`${rc.col} rg ${rc.x.toFixed(2)} ${rc.y.toFixed(2)} ${rc.w.toFixed(2)} ${rc.h.toFixed(2)} re f\n`});
-  pg.lines.forEach(ln=>{ops+=`0.75 0.75 0.75 RG 0.6 w ${ln.x1.toFixed(2)} ${ln.y1.toFixed(2)} m ${ln.x2.toFixed(2)} ${ln.y2.toFixed(2)} l S\n`});
-  pg.texts.forEach(t=>{const font=t.bold?'/F2':'/F1';
-   ops+=`BT ${font} ${t.size} Tf ${t.col} rg 1 0 0 1 ${t.x.toFixed(2)} ${t.y.toFixed(2)} Tm (${t.s}) Tj ET\n`});
-  imgs.forEach(({name,im})=>{ops+=`q ${im.dw.toFixed(2)} 0 0 ${im.dh.toFixed(2)} ${im.x.toFixed(2)} ${im.y.toFixed(2)} cm /${name} Do Q\n`});
-  const cbytes=strToLatin1Bytes(ops);
+  let cbytes;
+  if(pg.opsBytes){cbytes=pg.opsBytes}
+  else{let ops='';
+   pg.rects.forEach(rc=>{ops+=`${rc.col} rg ${rc.x.toFixed(2)} ${rc.y.toFixed(2)} ${rc.w.toFixed(2)} ${rc.h.toFixed(2)} re f\n`});
+   pg.lines.forEach(ln=>{ops+=`0.75 0.75 0.75 RG 0.6 w ${ln.x1.toFixed(2)} ${ln.y1.toFixed(2)} m ${ln.x2.toFixed(2)} ${ln.y2.toFixed(2)} l S\n`});
+   pg.texts.forEach(t=>{const font=t.bold?'/F2':'/F1';
+    ops+=`BT ${font} ${t.size} Tf ${t.col} rg 1 0 0 1 ${t.x.toFixed(2)} ${t.y.toFixed(2)} Tm (${t.s}) Tj ET\n`});
+   imgs.forEach(({name,im})=>{ops+=`q ${im.dw.toFixed(2)} 0 0 ${im.dh.toFixed(2)} ${im.x.toFixed(2)} ${im.y.toFixed(2)} cm /${name} Do Q\n`});
+   cbytes=strToLatin1Bytes(ops)}
   const cNum=contentObjNums[idx];
   offsets[cNum]=len;
   pushStr(`${cNum} 0 obj\n<< /Length ${cbytes.length} >>\nstream\n`);pushBytes(cbytes);pushStr('\nendstream\nendobj\n');
@@ -951,6 +967,103 @@ function pdfSerialize(pages){
  pushStr(`trailer\n<< /Size ${objN+1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
  const out=new Uint8Array(len);let o=0;buf.forEach(b=>{out.set(b,o);o+=b.length});
  return out}
+
+/* ===== Baca balik PDF yang dijana sendiri oleh pdfSerialize() — untuk cantum berbilang report jadi 1 =====
+ * BUKAN parser PDF umum — hanya faham struktur tepat yang enjin kita sendiri hasilkan (xref fixed-width
+ * 20-byte per entri, satu content stream + imej /DCTDecode setiap muka surat, tiada mampatan). Dict setiap
+ * objek dibaca dari tetingkap kecil (4000 aksara) bermula di offset objek itu — ini sentiasa cukup sebab
+ * dict kita ringkas & muncul sebelum sebarang bait binari (imej), jadi bait JPEG mentah tak pernah
+ * mengelirukan pengesanan sempadan dict. Panjang stream diambil terus dari /Length (bukan cari "endstream"),
+ * jadi selamat walau bait binari kebetulan mengandungi teks serupa penanda PDF. */
+function pdfParseOwnPages(bytes){
+ const s=latin1BytesToStr(bytes);
+ const sxm=/startxref\s*[\r\n]+(\d+)/.exec(s);
+ if(!sxm)throw new Error('Bukan format PDF sistem ini (xref tidak dijumpai)');
+ const xrefPos=+sxm[1];
+ const hm=/xref\s*[\r\n]+0 (\d+)[\r\n]+/.exec(s.slice(xrefPos));
+ if(!hm)throw new Error('xref rosak / tidak disokong');
+ const total=+hm[1];
+ const entriesStart=xrefPos+hm.index+hm[0].length;
+ const offsets=[0];
+ for(let i=1;i<total;i++)offsets.push(+s.slice(entriesStart+i*20,entriesStart+i*20+10));
+ function dictWindow(n){return s.slice(offsets[n],offsets[n]+4000)}
+ function balancedDict(txt,fromIdx){
+  const i=txt.indexOf('<<',fromIdx||0);
+  if(i<0)return null;
+  let depth=0,j=i;
+  while(j<txt.length){
+   if(txt.startsWith('<<',j)){depth++;j+=2}
+   else if(txt.startsWith('>>',j)){depth--;j+=2;if(depth===0)break}
+   else j++}
+  return{text:txt.slice(i,j),endRel:j}}
+ function readStream(n,dictEndRel,length){
+  const win=dictWindow(n);
+  let i=win.indexOf('stream',dictEndRel);
+  i+='stream'.length;
+  if(win[i]==='\r')i++;
+  if(win[i]==='\n')i++;
+  const abs=offsets[n]+i;
+  return strToLatin1Bytes(s.slice(abs,abs+length))}
+ const pagesDict=balancedDict(dictWindow(2)).text;
+ const kidsM=/\/Kids \[(.*?)\]/.exec(pagesDict);
+ const pageObjNums=[];
+ (kidsM?kidsM[1]:'').replace(/(\d+)\s+0\s+R/g,(m,n)=>{pageObjNums.push(+n);return m});
+ const pages=[];
+ pageObjNums.forEach(pn=>{
+  const pDict=balancedDict(dictWindow(pn)).text;
+  const contM=/\/Contents (\d+) 0 R/.exec(pDict);
+  const contNum=+contM[1];
+  const cd=balancedDict(dictWindow(contNum));
+  const lenM=/\/Length (\d+)/.exec(cd.text);
+  const opsBytes=readStream(contNum,cd.endRel,+lenM[1]);
+  const images=[];
+  const resM=/\/Resources/.exec(pDict);
+  if(resM){
+   const resDict=balancedDict(pDict,resM.index).text;
+   const xoM=/\/XObject/.exec(resDict);
+   if(xoM){
+    const xoDict=balancedDict(resDict,xoM.index).text;
+    const re=/\/(\w+)\s+(\d+)\s+0\s+R/g;let mm;
+    while((mm=re.exec(xoDict))){
+     const name=mm[1],imgNum=+mm[2];
+     const idd=balancedDict(dictWindow(imgNum));
+     const wM=/\/Width (\d+)/.exec(idd.text),hM=/\/Height (\d+)/.exec(idd.text),lM=/\/Length (\d+)/.exec(idd.text);
+     const imgBytes=readStream(imgNum,idd.endRel,+lM[1]);
+     images.push({name,natW:+wM[1],natH:+hM[1],bytes:imgBytes})}}}
+  pages.push({opsBytes,images})});
+ return pages}
+
+async function apiGetFile(fileId){
+ if(!API.url||!API.token)throw new Error(T('a_sv_merge_noapi'));
+ const res=await fetch(API.url+'?action=getfile&token='+encodeURIComponent(API.token)+'&id='+encodeURIComponent(fileId));
+ const j=await res.json();
+ if(!j.ok)throw new Error(j.error||'gagal ambil fail');
+ return j.data}
+
+async function mergeSelectedSV(){
+ const ids=[...document.querySelectorAll('.svPick:checked')].map(c=>c.value);
+ const st=$('svMergeStatus');
+ if(!ids.length)return alert(T('a_sv_merge_none'));
+ if(st)st.textContent=T('sv_merge_working');
+ try{
+  let allPages=[];
+  for(const id of ids){
+   const r=D.inspections.find(x=>x.id===id);
+   if(!r)continue;
+   let dataUri=r.pdfData;
+   if(!dataUri&&r.pdfFileId)dataUri=await apiGetFile(r.pdfFileId);
+   if(!dataUri){alert(T('a_sv_merge_missing').replace('{s}',r.site||r.tarikh||r.id));continue}
+   const bytes=b64ToBytes(dataUri.split(',')[1]);
+   allPages=allPages.concat(pdfParseOwnPages(bytes));
+  }
+  if(!allPages.length){if(st)st.textContent='';return alert(T('a_sv_merge_fail'))}
+  const outBytes=pdfSerialize(allPages);
+  const blob=new Blob([outBytes],{type:'application/pdf'});
+  window.open(URL.createObjectURL(blob),'_blank');
+  if(st)st.textContent=T('sv_merge_done').replace('{n}',ids.length);
+ }catch(err){
+  if(st)st.textContent='';
+  alert(T('a_sv_merge_err')+': '+err.message)}}
 
 function pdfBuildInspectionBase64(r){
  const pages=pdfLayoutInspection(r);
@@ -993,12 +1106,12 @@ function renderSV(){const mf=$('svMonthFilter')?$('svMonthFilter').value:'',sf=$
  if(sf)rows=rows.filter(r=>r.site===sf);
  if(jf)rows=rows.filter(r=>r.jenis===jf);
  if(q)rows=rows.filter(r=>[r.auditor,r.pic,r.site].some(v=>String(v||'').toLowerCase().includes(q)));
- $('svTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>${T('th_jenis')}</th><th>Site</th><th>Auditor</th><th>PIC</th><th>${T('th_skor')}</th><th></th></tr>`+
+ $('svTbl').innerHTML=`<tr><th></th><th>${T('th_tarikh')}</th><th>${T('th_jenis')}</th><th>Site</th><th>Auditor</th><th>PIC</th><th>${T('th_skor')}</th><th></th></tr>`+
   rows.map(r=>{const pct=r.tot?Math.round(r.good/r.tot*100):0;
-  return`<tr><td>${r.tarikh}</td><td><span class="tag b">${r.jenis==='site'?'Site':T('sv_store_opt')}</span></td>
+  return`<tr><td><input type="checkbox" class="svPick" value="${r.id}" style="width:auto"></td><td>${r.tarikh}</td><td><span class="tag b">${r.jenis==='site'?'Site':T('sv_store_opt')}</span></td>
   <td>${esc(r.site)}</td><td>${esc(r.auditor)}</td><td>${esc(r.pic)}</td>
   <td><span class="tag ${pct>=85?'g':pct>=60?'y':'r'}">${pct}%</span></td>
-  <td style="white-space:nowrap"><button class="btn yel sml" onclick="viewSV('${r.id}')">${T('btn_view')}</button> <button class="btn ghost sml" onclick="dlSV('${r.id}')">${T('btn_dl_pdf')}</button> <button class="btn red sml" onclick="delItem('inspections','${r.id}')">✕</button></td></tr>`}).join('')||`<tr><td colspan="7" style="text-align:center;color:#999">${T('none_rep')}</td></tr>`}
+  <td style="white-space:nowrap"><button class="btn yel sml" onclick="viewSV('${r.id}')">${T('btn_view')}</button> <button class="btn ghost sml" onclick="dlSV('${r.id}')">${T('btn_dl_pdf')}</button> <button class="btn red sml" onclick="delItem('inspections','${r.id}')">✕</button></td></tr>`}).join('')||`<tr><td colspan="8" style="text-align:center;color:#999">${T('none_rep')}</td></tr>`}
 
 /* ===== SAFETY REWARD PROGRAM ===== */
 /* Kriteria dari SR/HSE/SRP/01 REV.0 — type 'eval' = skor 0..max oleh committee; 'count' = bil. kali × pts */
