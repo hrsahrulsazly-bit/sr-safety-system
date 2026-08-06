@@ -396,6 +396,9 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div class="card"><h3 data-i18n="st_target">Target KPI Manhour Tahunan</h3>
       <div class="tools"><input type="number" id="stTarget" style="flex:1"><button class="btn sml" onclick="saveTarget()" data-i18n="st_save">Simpan</button></div>
       <div class="sub"><span data-i18n="st_now">Semasa:</span> <b id="stTargetNow"></b></div>
+      <h3 style="margin-top:18px" data-i18n="st_target_site">Target KPI ikut Site / Branch</h3>
+      <div id="stSiteTargetList"></div>
+      <div class="sub" data-i18n="st_target_site_note">Site tanpa target khas akan guna Target Tahunan (di atas) sebagai lalai.</div>
       <h3 style="margin-top:18px" data-i18n="st_pass">Kata Laluan Admin</h3>
       <div class="tools"><input type="password" id="stPass" data-i18n-ph="st_pass_ph" placeholder="Kata laluan baru" style="flex:1"><button class="btn sml" onclick="savePass()" data-i18n="st_change">Tukar</button></div>
       <h3 style="margin-top:18px" data-i18n="st_backup">Backup & Pemindahan Data</h3>
@@ -501,6 +504,8 @@ st_plan:['Dirancang','Planned'],st_done:['Selesai','Completed'],st_post:['Ditang
 st_title:['⚙️ Tetapan Sistem','⚙️ System Settings'],st_sites:['Senarai Site / Projek','Site / Project List'],
 st_add:['+ Tambah','+ Add'],st_target:['Target KPI Manhour Tahunan','Annual Manhour KPI Target'],
 st_save:['Simpan','Save'],st_now:['Semasa:','Current:'],st_pass:['Kata Laluan Admin','Admin Password'],
+st_target_site:['Target KPI ikut Site / Branch','Manhour KPI Target by Branch'],
+st_target_site_note:['Site tanpa target khas akan guna Target Tahunan (di atas) sebagai lalai.','Sites without a custom target will use the Annual Target (above) as default.'],
 st_pass_ph:['Kata laluan baru','New password'],st_change:['Tukar','Change'],
 st_backup:['Backup & Pemindahan Data','Backup & Data Transfer'],st_dl:['⬇ Muat Turun Backup (JSON)','⬇ Download Backup (JSON)'],
 st_del:['Padam Semua Data','Delete All Data'],
@@ -579,8 +584,9 @@ function applyLang(){BLN=BLNS[UI.lang]||BLNS.ms;
  const b=document.getElementById('langBtn');if(b)b.textContent=UI.lang==='ms'?'EN':'BM';
  renderAll();buildSV()}
 let D=load();
+D.siteTargets=D.siteTargets||{};
 function load(){try{const x=JSON.parse(localStorage.getItem(K));if(x)return x}catch(e){}
- return {sites:['OTN Next DC','OSBN'],target:1200000,pass:'sradmin',manhours:[],reports:[],programs:[],inspections:[],users:[],rewards:[],tombstones:[],settingsUpdatedAt:0}}
+ return {sites:['OTN Next DC','OSBN'],target:1200000,siteTargets:{},pass:'sradmin',manhours:[],reports:[],programs:[],inspections:[],users:[],rewards:[],tombstones:[],settingsUpdatedAt:0}}
 function persistLocal(){localStorage.setItem(K,JSON.stringify(D));renderAll()}
 function save(){persistLocal();triggerSync()}
 /* ===== KONFIG PELAYAN PUSAT =====
@@ -604,6 +610,7 @@ function mergeD(a,b){const out={};
  const aSU=a.settingsUpdatedAt||0,bSU=b.settingsUpdatedAt||0;const newer=bSU>=aSU?b:a;
  out.settingsUpdatedAt=Math.max(aSU,bSU);
  out.sites=newer.sites||a.sites||b.sites||[];out.target=newer.target||a.target||b.target||1200000;out.pass=newer.pass||a.pass||b.pass||'sradmin';
+ out.siteTargets=newer.siteTargets||a.siteTargets||b.siteTargets||{};
  const tsMap={};[...(a.tombstones||[]),...(b.tombstones||[])].forEach(t=>{const k=t.ent+':'+t.id;if(!tsMap[k]||tsMap[k].ts<t.ts)tsMap[k]=t});
  out.tombstones=Object.values(tsMap);
  const isDel=(ent,id)=>out.tombstones.some(t=>t.ent===ent&&String(t.id)===String(id));
@@ -1306,8 +1313,9 @@ function renderDash(){
  const mhY=bySite(D.manhours.filter(r=>r.bulan.startsWith(thisYear)));
  const tot=mhY.reduce((t,r)=>t+r.jam,0);
  const totHari=mhY.reduce((t,r)=>t+(r.hari||0),0);
- $('dTotalMH').textContent=fmt(tot);$('dTarget').textContent=fmt(D.target);$('dHariYTD').textContent=fmt(totHari);
- const pct=Math.min(100,Math.round(tot/D.target*100));
+ const tgt=filterSite?(D.siteTargets[filterSite]||D.target):D.target;
+ $('dTotalMH').textContent=fmt(tot);$('dTarget').textContent=fmt(tgt);$('dHariYTD').textContent=fmt(totHari);
+ const pct=Math.min(100,Math.round(tot/tgt*100));
  $('dBar').style.width=pct+'%';$('dPct').textContent=pct+'% '+T('of_target');
  const rm=($('dMonthFilter')&&$('dMonthFilter').value)||prevMonth();
  const isCurRM=rm===prevMonth();
@@ -1347,9 +1355,17 @@ function renderDash(){
 /* ===== TETAPAN ===== */
 function addSite(){const v=$('stSite').value.trim();if(!v)return;if(D.sites.includes(v))return alert('Site sudah wujud.');
  D.sites.push(v);D.settingsUpdatedAt=Date.now();$('stSite').value='';save()}
-function delSite(i){if(!confirm('Buang site "'+D.sites[i]+'" dari senarai? (Rekod lama kekal)'))return;D.sites.splice(i,1);D.settingsUpdatedAt=Date.now();save()}
+function delSite(i){const s=D.sites[i];if(!confirm('Buang site "'+s+'" dari senarai? (Rekod lama kekal)'))return;
+ D.sites.splice(i,1);delete D.siteTargets[s];D.settingsUpdatedAt=Date.now();save()}
 function renderST(){$('stSiteList').innerHTML=D.sites.map((s,i)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:13px"><b>${esc(s)}</b><button class="btn red sml" onclick="delSite(${i})">✕</button></div>`).join('')||'<span class="sub">Tiada site.</span>';
- $('stTarget').value=D.target;$('stTargetNow').textContent=fmt(D.target)}
+ $('stTarget').value=D.target;$('stTargetNow').textContent=fmt(D.target);
+ $('stSiteTargetList').innerHTML=D.sites.map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #eee;font-size:13px">
+  <b>${esc(s)}</b>
+  <input type="number" min="0" value="${D.siteTargets[s]||''}" placeholder="${fmt(D.target)}" style="width:140px" onchange="saveSiteTarget('${esc(s)}',this.value)">
+  </div>`).join('')||'<span class="sub">Tiada site.</span>'}
+function saveSiteTarget(site,val){const v=+val;
+ if(v>0)D.siteTargets[site]=v;else delete D.siteTargets[site];
+ D.settingsUpdatedAt=Date.now();save()}
 function saveTarget(){const v=+$('stTarget').value;if(v>0){D.target=v;D.settingsUpdatedAt=Date.now();save();alert('Target dikemaskini ✔')}}
 function backup(){const a=document.createElement('a');
  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(D,null,1));
@@ -1361,8 +1377,10 @@ function restore(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader(
    x.sites.forEach(s=>{if(!D.sites.includes(s))D.sites.push(s)});
    if(!D.tombstones)D.tombstones=[];
    (x.tombstones||[]).forEach(t=>{if(!D.tombstones.some(e=>e.ent===t.ent&&e.id===t.id))D.tombstones.push(t)});
+   D.siteTargets=Object.assign({},x.siteTargets||{},D.siteTargets||{});
    D.settingsUpdatedAt=Math.max(D.settingsUpdatedAt||0,x.settingsUpdatedAt||0)
   }else D=x;
+  D.siteTargets=D.siteTargets||{};
   save();alert('Data berjaya diimport ✔')}catch(err){alert('Fail tidak sah.')}};
  rd.readAsText(f);inp.value=''}
 function resetAll(){if(confirm('PADAM SEMUA DATA? Tindakan ini tidak boleh diundur!')&&confirm('Pasti? Buat backup dahulu jika perlu.')){
