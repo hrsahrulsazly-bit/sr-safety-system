@@ -170,7 +170,8 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div class="card"><h3 data-i18n="d_mh">Manhour Kumulatif (Tahun Ini)</h3><div class="big" id="dTotalMH">0</div>
       <div class="sub">Target KPI: <b id="dTarget">1,200,000</b> manhour</div>
       <div class="bar"><div id="dBar" style="width:0%"></div></div>
-      <div class="sub" id="dPct">0%</div></div>
+      <div class="sub" id="dPct">0%</div>
+      <div class="sub"><span data-i18n="d_hari">Jumlah Hari (Tahun Ini):</span> <b id="dHariYTD">0</b></div></div>
     <div class="card"><h3 data-i18n="d_rep">Report Bulanan Diterima</h3><div class="big" id="dLTI">0</div><div class="sub" id="dNM"></div></div>
     <div class="card"><h3 data-i18n="d_prog">Program Safety</h3><div class="big" id="dProg">0</div><div class="sub" id="dProgSub"></div></div>
     <div class="card"><h3 data-i18n="d_lti">Kes LTI (Tahun Ini)</h3><div class="big" id="dLTICount">0</div><div class="sub" id="dLTISub"></div></div>
@@ -190,11 +191,15 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       <div><label data-i18n="lbl_bulan">Bulan</label><input type="month" id="mhBulan"></div>
       <div><label data-i18n="lbl_site">Site / Projek</label><select id="mhSite"></select></div>
       <div><label data-i18n="lbl_pekerja">Bil. Pekerja</label><input type="number" id="mhPekerja" min="0" placeholder="0"></div>
+      <div><label data-i18n="lbl_hari">Jumlah Hari</label><input type="number" id="mhHari" min="0" placeholder="0"></div>
       <div><label data-i18n="lbl_manhour">Jumlah Manhour</label><input type="number" id="mhJam" min="0" placeholder="0"></div>
       <div><label data-i18n="lbl_lti">Bil. Kes LTI (Kemalangan)</label><input type="number" id="mhLTI" min="0" placeholder="0"></div>
       <div><label data-i18n="lbl_pic">Nama PIC</label><input type="text" id="mhPIC" data-i18n-ph="lbl_pic" placeholder="Nama PIC"></div>
       <div><label data-i18n="lbl_remark">Remark</label><input type="text" id="mhRemark" data-i18n-ph="lbl_remark_ph" placeholder="Catatan kemalangan / lain-lain (jika ada)"></div>
-      <div style="align-self:end"><button class="btn" onclick="addMH()" data-i18n="btn_save_mh">+ Simpan Manhour</button></div>
+      <div style="align-self:end;display:flex;gap:8px">
+        <button class="btn" id="mhSaveBtn" onclick="addMH()" data-i18n="btn_save_mh">+ Simpan Manhour</button>
+        <button class="btn ghost" id="mhCancelBtn" onclick="cancelEditMH()" style="display:none" data-i18n="btn_cancel">Batal</button>
+      </div>
     </div>
     <div class="sub" style="margin-top:8px" data-i18n="mh_note">⚠️ Manhour report perlu dimasukkan sebelum 7hb bulan berikutnya (cth: manhour June — sebelum 7hb July).</div>
   </div>
@@ -435,6 +440,7 @@ d_mh:['Manhour Kumulatif (Tahun Ini)','Cumulative Manhours (This Year)'],
 d_rep:['Report Bulanan Diterima','Monthly Reports Received'],
 d_prog:['Program Safety','Safety Programs'],
 d_chart:['Manhour Bulanan','Monthly Manhours'],
+d_hari:['Jumlah Hari (Tahun Ini):','Total Days (This Year):'],
 d_next:['Program Akan Datang','Upcoming Programs'],
 d_filter:['Tapis Site:','Filter Site:'],d_filter_all:['Semua Site','All Sites'],
 d_filter_mth:['Tapis Bulan:','Filter Month:'],
@@ -447,6 +453,7 @@ from_sites:['daripada {n} site telah upload report {m}','of {n} sites have uploa
 prog_sub:['Selesai: {a} | Dirancang: {b}','Completed: {a} | Planned: {b}'],
 lbl_bulan:['Bulan','Month'],lbl_site:['Site / Projek','Site / Project'],
 lbl_pekerja:['Bil. Pekerja','No. of Workers'],lbl_manhour:['Jumlah Manhour','Total Manhours'],
+lbl_hari:['Jumlah Hari','No. of Days'],
 lbl_lti:['Bil. Kes LTI (Kemalangan)','No. of LTI Cases (Accident)'],
 lbl_remark:['Remark','Remark'],lbl_remark_ph:['Catatan kemalangan / lain-lain (jika ada)','Accident notes / others (if any)'],
 th_lti:['LTI','LTI'],th_remark:['Remark','Remark'],
@@ -455,13 +462,14 @@ lti_none:['Tiada','None'],
 lti_sub:['⚠️ Ada kemalangan direkod — semak Remark','⚠️ Accident(s) recorded — check Remark'],
 lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this year'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
+btn_update_mh:['✔ Kemaskini Manhour','✔ Update Manhours'],btn_cancel:['Batal','Cancel'],btn_edit:['✎ Edit','✎ Edit'],
 mh_note:['⚠️ Manhour report perlu dimasukkan sebelum 7hb bulan berikutnya (cth: manhour June — sebelum 7hb July).','⚠️ Manhour report must be entered before the 7th of the following month (e.g. June manhours — before 7th July).'],
 cum_year:['Kumulatif tahun ini:','Cumulative this year:'],
 lbl_lokasi:['Site / Projek (Lokasi)','Site / Project (Location)'],lbl_pic:['Nama PIC','PIC Name'],
 lbl_fail:['Fail Report (PDF)','Report File (PDF)'],
 rp_note:['⚠️ Upload report PDF sebelum 7hb bulan berikutnya (cth: report June — sebelum 7hb July). Saiz maksimum: 3MB.','⚠️ Upload the PDF report before the 7th of the following month (e.g. June report — before 7th July). Max size: 3MB.'],
 export_list:['⬇ Export Senarai (CSV)','⬇ Export List (CSV)'],
-th_bulan:['Bulan','Month'],th_pekerja:['Bil. Pekerja','Workers'],th_lok:['Lokasi / Site','Location / Site'],
+th_bulan:['Bulan','Month'],th_pekerja:['Bil. Pekerja','Workers'],th_hari:['Hari','Days'],th_lok:['Lokasi / Site','Location / Site'],
 th_pdf:['Fail PDF','PDF File'],th_updt:['Tarikh Upload','Upload Date'],th_tarikh:['Tarikh','Date'],
 th_jenis:['Jenis','Type'],th_skor:['Skor','Score'],th_detail:['Detail','Details'],
 none_rec:['Tiada rekod lagi','No records yet'],none_rep:['Tiada report lagi','No reports yet'],none_prog:['Tiada program lagi','No programs yet'],
@@ -503,6 +511,7 @@ al_due:['⏰ Peringatan: Report & manhour {m} perlu dihantar sebelum 7hb {c}. Be
 al_late:['🔴 LEWAT: Report & manhour {m} sepatutnya dihantar sebelum 7hb {c}. Belum lengkap: {s}','🔴 OVERDUE: {m} report & manhours were due before the 7th of {c}. Pending: {s}'],
 d_next_none:['Tiada program dirancang. Sila daftar di tab Safety Program.','No programs planned. Register one in the Safety Program tab.'],
 a_mh_fill:['Sila isi bulan, site dan jumlah manhour.','Please fill in month, site and total manhours.'],
+a_mh_upd_ok:['Manhour dikemaskini ✔','Manhours updated ✔'],
 a_mh_ok:['Manhour disimpan ✔','Manhours saved ✔'],
 a_del:['Padam rekod ini?','Delete this record?'],
 a_rp_fill:['Sila pilih bulan dan lokasi.','Please select month and location.'],
@@ -671,11 +680,26 @@ function fillSites(){['mhSite','rpSite','pgSite','svSite','rwSite'].forEach(id=>
 (function(){const pm=prevMonth();['mhBulan','rpBulan'].forEach(id=>$(id).value=pm)})();
 
 /* ===== MANHOUR ===== */
-function addMH(){const b=$('mhBulan').value,s=$('mhSite').value,p=+$('mhPekerja').value,j=+$('mhJam').value,
+let mhEditId=null;
+function addMH(){const b=$('mhBulan').value,s=$('mhSite').value,p=+$('mhPekerja').value,hari=+$('mhHari').value||0,j=+$('mhJam').value,
  lti=+$('mhLTI').value||0,pic=$('mhPIC').value.trim(),remark=$('mhRemark').value.trim();
  if(!b||!s||!j)return alert(T('a_mh_fill'));
- D.manhours.push({id:uid(),bulan:b,site:s,pekerja:p,jam:j,lti,pic,remark,updatedAt:Date.now()});save();
- $('mhJam').value='';$('mhPekerja').value='';$('mhLTI').value='';$('mhPIC').value='';$('mhRemark').value='';alert(T('a_mh_ok'))}
+ if(mhEditId){
+  const r=D.manhours.find(x=>x.id===mhEditId);
+  if(r){r.bulan=b;r.site=s;r.pekerja=p;r.hari=hari;r.jam=j;r.lti=lti;r.pic=pic;r.remark=remark;r.updatedAt=Date.now()}
+  save();cancelEditMH();alert(T('a_mh_upd_ok'));return}
+ D.manhours.push({id:uid(),bulan:b,site:s,pekerja:p,hari,jam:j,lti,pic,remark,updatedAt:Date.now()});save();
+ $('mhJam').value='';$('mhPekerja').value='';$('mhHari').value='';$('mhLTI').value='';$('mhPIC').value='';$('mhRemark').value='';alert(T('a_mh_ok'))}
+function editMH(id){const r=D.manhours.find(x=>x.id===id);if(!r)return;
+ mhEditId=id;
+ $('mhBulan').value=r.bulan;$('mhSite').value=r.site;$('mhPekerja').value=r.pekerja||'';$('mhHari').value=r.hari||'';
+ $('mhJam').value=r.jam||'';$('mhLTI').value=r.lti||'';$('mhPIC').value=r.pic||'';$('mhRemark').value=r.remark||'';
+ $('mhSaveBtn').textContent=T('btn_update_mh');$('mhCancelBtn').style.display='';
+ $('mhBulan').scrollIntoView({behavior:'smooth',block:'center'})}
+function cancelEditMH(){mhEditId=null;
+ $('mhJam').value='';$('mhPekerja').value='';$('mhHari').value='';$('mhLTI').value='';$('mhPIC').value='';$('mhRemark').value='';
+ $('mhBulan').value=prevMonth();
+ $('mhSaveBtn').textContent=T('btn_save_mh');$('mhCancelBtn').style.display='none'}
 function delItem(arr,id){if(!confirm(T('a_del')))return;
  if(!D.tombstones)D.tombstones=[];D.tombstones.push({ent:arr,id,ts:Date.now()});
  D[arr]=D[arr].filter(x=>x.id!==id);save()}
@@ -685,12 +709,12 @@ function renderMH(){const mf=$('mhMonthFilter')?$('mhMonthFilter').value:'',sf=$
  if(mf)rows=rows.filter(r=>r.bulan===mf);
  if(sf)rows=rows.filter(r=>r.site===sf);
  if(q)rows=rows.filter(r=>[r.pic,r.remark,r.site].some(v=>String(v||'').toLowerCase().includes(q)));
- $('mhTbl').innerHTML=`<tr><th>${T('th_bulan')}</th><th>Site</th><th>${T('th_pekerja')}</th><th>Manhour</th><th>${T('th_lti')}</th><th>${T('lbl_pic')}</th><th>${T('th_remark')}</th><th></th></tr>`+
-  rows.map(r=>`<tr><td>${mLbl(r.bulan)}</td><td>${esc(r.site)}</td><td>${fmt(r.pekerja)}</td><td><b>${fmt(r.jam)}</b></td>
+ $('mhTbl').innerHTML=`<tr><th>${T('th_bulan')}</th><th>Site</th><th>${T('th_pekerja')}</th><th>${T('th_hari')}</th><th>Manhour</th><th>${T('th_lti')}</th><th>${T('lbl_pic')}</th><th>${T('th_remark')}</th><th></th></tr>`+
+  rows.map(r=>`<tr><td>${mLbl(r.bulan)}</td><td>${esc(r.site)}</td><td>${fmt(r.pekerja)}</td><td>${fmt(r.hari||0)}</td><td><b>${fmt(r.jam)}</b></td>
   <td>${r.lti?`<span class="tag r">${fmt(r.lti)}</span>`:`<span class="tag g">${T('lti_none')}</span>`}</td>
   <td>${esc(r.pic)||'-'}</td>
   <td>${esc(r.remark)||'-'}</td>
-  <td><button class="btn red sml" onclick="delItem('manhours','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`;
+  <td style="white-space:nowrap"><button class="btn yel sml" onclick="editMH('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('manhours','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`;
  const ytd=D.manhours.filter(r=>r.bulan.startsWith(thisYear)).reduce((t,r)=>t+r.jam,0);
  $('mhYTD').textContent=fmt(ytd);$('mhTgt').textContent=fmt(D.target)}
 
@@ -1281,7 +1305,8 @@ function renderDash(){
  const sitesList=filterSite?[filterSite]:D.sites;
  const mhY=bySite(D.manhours.filter(r=>r.bulan.startsWith(thisYear)));
  const tot=mhY.reduce((t,r)=>t+r.jam,0);
- $('dTotalMH').textContent=fmt(tot);$('dTarget').textContent=fmt(D.target);
+ const totHari=mhY.reduce((t,r)=>t+(r.hari||0),0);
+ $('dTotalMH').textContent=fmt(tot);$('dTarget').textContent=fmt(D.target);$('dHariYTD').textContent=fmt(totHari);
  const pct=Math.min(100,Math.round(tot/D.target*100));
  $('dBar').style.width=pct+'%';$('dPct').textContent=pct+'% '+T('of_target');
  const rm=($('dMonthFilter')&&$('dMonthFilter').value)||prevMonth();
@@ -1345,7 +1370,7 @@ function resetAll(){if(confirm('PADAM SEMUA DATA? Tindakan ini tidak boleh diund
 
 /* ===== EXPORT CSV ===== */
 function csv(kind){let head,rows,name;
- if(kind==='manhours'){head=['Bulan','Site','Bil Pekerja','Manhour','Bil Kes LTI','Nama PIC','Remark'];rows=D.manhours.map(r=>[r.bulan,r.site,r.pekerja,r.jam,r.lti||0,r.pic||'',r.remark||'']);name='Safety-Manhour'}
+ if(kind==='manhours'){head=['Bulan','Site','Bil Pekerja','Jumlah Hari','Manhour','Bil Kes LTI','Nama PIC','Remark'];rows=D.manhours.map(r=>[r.bulan,r.site,r.pekerja,r.hari||0,r.jam,r.lti||0,r.pic||'',r.remark||'']);name='Safety-Manhour'}
  if(kind==='reports'){head=['Bulan','Lokasi/Site','Nama PIC','Nama Fail','Tarikh Upload'];
   rows=D.reports.map(r=>[r.bulan,r.site,r.pic,r.fname,r.tarikh]);name='Safety-Monthly-Report'}
  if(kind==='programs'){head=['Tarikh','Program','Jenis','Site','PIC','Status','Detail'];
