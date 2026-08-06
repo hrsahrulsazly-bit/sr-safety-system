@@ -611,7 +611,7 @@ function mergeD(a,b){const out={};
   bila updatedAt sama — elak base64 tempatan kekal selamanya & penuhkan storan.
   (inspections tak dinilai di sini — gambarnya sengaja kekal tempatan sahaja,
   tak pernah dihantar/diresolve ke server, lihat stripPhotos di pushToServer) */
- const isResolved=(ent,r)=>ent==='reports'?!!r.driveFileId:ent==='inspections'?!!r.pdfFileId:true;
+ const isResolved=(ent,r)=>ent==='reports'?!!r.driveFileId:ent==='inspections'?!!r.pdfFileId:ent==='manhours'?!!(r.pic&&String(r.pic).trim()):true;
  ['manhours','reports','inspections','programs','users','rewards'].forEach(ent=>{const map={};
   [...(a[ent]||[]),...(b[ent]||[])].forEach(r=>{const ex=map[r.id];
    if(!ex){map[r.id]=r;return}
