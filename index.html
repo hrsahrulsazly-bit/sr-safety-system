@@ -347,7 +347,8 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <div id="rwList"></div>
     <div class="card" style="margin-top:14px">
       <div class="tools">
-        <button class="btn" onclick="addRW()" data-i18n="rw_save">+ Simpan Penilaian</button>
+        <button class="btn" id="rwSaveBtn" onclick="addRW()" data-i18n="rw_save">+ Simpan Penilaian</button>
+        <button class="btn ghost" id="rwCancelBtn" onclick="cancelEditRW()" style="display:none" data-i18n="btn_cancel">Batal</button>
         <span style="font-size:16px;font-weight:800;color:var(--pri)" id="rwTotal">0 pts</span>
       </div>
     </div>
@@ -466,6 +467,7 @@ lti_sub:['⚠️ Ada kemalangan direkod — semak Remark','⚠️ Accident(s) re
 lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this year'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
 btn_update_mh:['✔ Kemaskini Manhour','✔ Update Manhours'],btn_cancel:['Batal','Cancel'],btn_edit:['✎ Edit','✎ Edit'],
+btn_update_rw:['✔ Kemaskini Penilaian','✔ Update Rating'],
 mh_note:['⚠️ Manhour report perlu dimasukkan sebelum 7hb bulan berikutnya (cth: manhour June — sebelum 7hb July).','⚠️ Manhour report must be entered before the 7th of the following month (e.g. June manhours — before 7th July).'],
 cum_year:['Kumulatif tahun ini:','Cumulative this year:'],
 lbl_lokasi:['Site / Projek (Lokasi)','Site / Project (Location)'],lbl_pic:['Nama PIC','PIC Name'],
@@ -545,11 +547,19 @@ rw_save:['+ Simpan Penilaian','+ Save Rating'],
 rw_list:['Senarai Penilaian & Ranking','Rating List & Ranking'],
 rw_by:['Penilai','Evaluator'],
 rw_criteria:['Kriteria Penilaian (SR/HSE/SRP/01)','Evaluation Criteria (SR/HSE/SRP/01)'],
-rw_eval:['Skor committee','Committee score'],
+rw_eval:['Dinilai oleh jawatankuasa','Evaluated by committee'],
 rw_each:['setiap kali (masukkan bil. kali)','each (enter count)'],
+rw_desc:['Keterangan / Keperluan','Descriptions / Requirements'],
+rw_yn:['Yes / No','Yes / No'],yes:['Yes','Yes'],no:['No','No'],
+rw_maxpt:['Max. Point','Max. Point'],
+rw_input:['Bil. Kali / Skor','Count / Score'],
+rw_remarks:['Remarks','Remarks'],
+rw_max:['maks','max'],
+rw_admin_who:['Admin (Tetapan Sistem)','Admin (System Settings)'],
 a_rw_fail:['ID atau kata laluan salah.','Invalid ID or password.'],
 a_rw_nama:['Sila isi nama calon / branch.','Please enter the nominee / branch name.'],
 a_rw_ok:['Penilaian disimpan ✔','Rating saved ✔'],
+a_rw_upd_ok:['Penilaian dikemaskini ✔','Rating updated ✔'],
 st_users:['ID Penilai — Safety Reward','Evaluator IDs — Safety Reward'],
 st_uname:['Nama','Name'],
 st_users_note:['Hanya pengguna dengan ID ini boleh membuat penilaian Safety Reward.','Only users with these IDs can submit Safety Reward ratings.'],
@@ -676,7 +686,7 @@ function go(p,btn){document.querySelectorAll('.page').forEach(x=>x.classList.rem
 let adminOK=false;
 function openTetapan(){
  if(!adminOK){const p=prompt('Log in Admin — masukkan kata laluan:');if(p===null)return;
-  if(p!==(D.pass||'sradmin'))return alert('Kata laluan salah.');adminOK=true}
+  if(p!==(D.pass||'sradmin'))return alert('Kata laluan salah.');adminOK=true;rwView()}
  go('tetapan',null);window.scrollTo(0,0);fillAPIForm()}
 function savePass(){const v=$('stPass').value.trim();if(v.length<4)return alert('Kata laluan minimum 4 aksara.');
  D.pass=v;D.settingsUpdatedAt=Date.now();$('stPass').value='';save();alert('Kata laluan ditukar ✔')}
@@ -1184,43 +1194,80 @@ branch:[
  {q:'Proper Safety filing system',type:'eval',max:10}]};
 let EVAL=null; /* penilai log masuk (sesi semasa sahaja) */
 let RWW=[];
+let RWYN=[]; /* Yes/No penanda rujukan setiap kriteria (ikut jadual proposal) — tak beri kesan kepada Pts, sekadar rekod */
+let rwEditId=null;
 function userKats(u){return (u.kats&&u.kats.length)?u.kats:['worker','staff','branch']}
 function rwLogin(){const id=$('rwId').value.trim(),p=$('rwPass').value;
  const u=(D.users||[]).find(x=>x.uid.toLowerCase()===id.toLowerCase()&&x.pass===p);
  if(!u)return alert(T('a_rw_fail'));
  EVAL=u;$('rwId').value='';$('rwPass').value='';rwView();rwFillKat();buildRW()}
 function rwLogout(){EVAL=null;rwView()}
-function rwView(){$('rwLogin').style.display=EVAL?'none':'block';
- $('rwMain').style.display=EVAL?'block':'none';
+function rwView(){const canSee=EVAL||adminOK;
+ $('rwLogin').style.display=EVAL?'none':(adminOK?'none':'block');
+ $('rwMain').style.display=canSee?'block':'none';
  if(EVAL){const KL={worker:'Worker',staff:'Staff',branch:'Branch'};
-  $('rwWho').textContent=EVAL.nama+' ('+EVAL.uid+') — '+userKats(EVAL).map(k=>KL[k]).join(', ')}}
+  $('rwWho').textContent=EVAL.nama+' ('+EVAL.uid+') — '+userKats(EVAL).map(k=>KL[k]).join(', ')}
+ else if(adminOK)$('rwWho').textContent=T('rw_admin_who');
+ if(canSee)rwFillKat()}
 function rwFillKat(){const kats=EVAL?userKats(EVAL):['worker','staff','branch'];
  const LBL={worker:'Best Safety Worker',staff:'Best Safety Staff',branch:'Best Safety Branch (Team)'};
  const s=$('rwKat');const v=s.value;
  s.innerHTML=kats.map(k=>`<option value="${k}">${LBL[k]}</option>`).join('');
  if(kats.includes(v))s.value=v}
-function buildRW(){const tpl=RW_TPL[$('rwKat').value]||RW_TPL.worker;
- RWW=tpl.map(()=>0);
- $('rwList').innerHTML=`<div class="svSec">${T('rw_criteria')}</div>`+tpl.map((it,i)=>`<div class="svItem">
-  <div class="q">${i+1}. ${esc(it.q)}<br><span class="sub">${it.type==='eval'?T('rw_eval')+' (max '+it.max+' pts)':it.pts+' pts '+T('rw_each')+(it.cap?' (max '+it.cap+')':'')}</span></div>
-  <div style="display:flex;align-items:center;gap:6px">
-   <input type="number" min="0" ${it.type==='eval'?'max="'+it.max+'"':''} value="0" style="width:80px" oninput="rwCalc(${i},this)">
-   <b id="rwpt_${i}" style="min-width:60px;text-align:right;color:var(--pri)">0 pts</b></div></div>`).join('');
+function buildRW(preset,presetYN){const tpl=RW_TPL[$('rwKat').value]||RW_TPL.worker;
+ RWW=preset?[...preset]:tpl.map(()=>0);
+ RWYN=presetYN?[...presetYN]:tpl.map(()=>null);
+ $('rwList').innerHTML=`<h3 style="margin:14px 0 8px">${T('rw_criteria')}</h3><div class="tblwrap"><table>
+  <tr><th>No</th><th>${T('rw_desc')}</th><th>${T('rw_yn')}</th><th>${T('rw_maxpt')}</th><th>${T('rw_input')}</th><th>Pts</th><th>${T('rw_remarks')}</th></tr>
+  ${tpl.map((it,i)=>{const cur=RWW[i]||0;const inputVal=it.type==='eval'?cur:(it.pts?Math.round(cur/it.pts):0);const yn=RWYN[i];
+   return`<tr><td>${i+1}</td><td>${esc(it.q)}</td>
+   <td><div class="ansBtns" id="rwyn_${i}" style="justify-content:center">
+    <button class="${yn==='Yes'?'selY':''}" onclick="rwYN(${i},'Yes',this)">${T('yes')}</button>
+    <button class="${yn==='No'?'selN':''}" onclick="rwYN(${i},'No',this)">${T('no')}</button></div></td>
+   <td style="text-align:center">${it.type==='eval'?it.max:(it.cap||'-')}</td>
+   <td><input type="number" min="0" ${it.type==='eval'?'max="'+it.max+'"':''} value="${inputVal}" style="width:70px" oninput="rwCalc(${i},this)"></td>
+   <td id="rwpt_${i}" style="text-align:right;color:var(--pri);font-weight:700">${cur} pts</td>
+   <td class="sub">${it.type==='eval'?T('rw_eval'):(it.pts+' '+T('rw_each')+(it.cap?' ('+T('rw_max')+' '+it.cap+')':''))}</td></tr>`}).join('')}
+  </table></div>`;
  rwTotal()}
+function rwYN(i,v,btn){RWYN[i]=v;
+ [...btn.parentNode.children].forEach(b=>b.className='');
+ btn.className=v==='Yes'?'selY':'selN'}
 function rwCalc(i,inp){const tpl=RW_TPL[$('rwKat').value]||RW_TPL.worker;const it=tpl[i];
  let v=Math.max(0,+inp.value||0);
  if(it.type==='eval'){v=Math.min(v,it.max);inp.value=v;RWW[i]=v}
  else{let sc=v*it.pts;if(it.cap)sc=Math.min(sc,it.cap);RWW[i]=sc}
  $('rwpt_'+i).textContent=RWW[i]+' pts';rwTotal()}
 function rwTotal(){$('rwTotal').textContent=RWW.reduce((a,b)=>a+b,0)+' pts'}
-function addRW(){if(!EVAL)return;
+function addRW(){
+ if(rwEditId){
+  if(!(EVAL||adminOK))return;
+  const r=D.rewards.find(x=>x.id===rwEditId);if(!r)return;
+  const nama=$('rwNama').value.trim();if(!nama)return alert(T('a_rw_nama'));
+  const tot=RWW.reduce((a,b)=>a+b,0);
+  r.nama=nama;r.kat=$('rwKat').value;r.site=$('rwSite').value;r.bulan=$('rwBulan').value;r.scores=[...RWW];r.yn=[...RWYN];r.tot=tot;r.updatedAt=Date.now();
+  save();cancelEditRW();alert(T('a_rw_upd_ok')+' — '+tot+' pts');return}
+ if(!EVAL)return;
  const nama=$('rwNama').value.trim();if(!nama)return alert(T('a_rw_nama'));
  const kat=$('rwKat').value;
  if(!userKats(EVAL).includes(kat))return alert(T('a_rw_notallowed'));
  const tot=RWW.reduce((a,b)=>a+b,0);
  D.rewards.push({id:uid(),kat,nama,site:$('rwSite').value,bulan:$('rwBulan').value,
-  by:EVAL.uid,tot,scores:[...RWW],tarikh:todayStr(),updatedAt:Date.now()});
+  by:EVAL.uid,tot,scores:[...RWW],yn:[...RWYN],tarikh:todayStr(),updatedAt:Date.now()});
  save();$('rwNama').value='';buildRW();alert(T('a_rw_ok')+' — '+tot+' pts')}
+function editRW(id){const r=D.rewards.find(x=>x.id===id);if(!r)return;
+ if(!(EVAL||adminOK))return;
+ rwEditId=id;
+ const s=$('rwKat');
+ if(![...s.options].some(o=>o.value===r.kat)){const opt=document.createElement('option');opt.value=r.kat;opt.textContent=rwKatLbl(r.kat);s.appendChild(opt)}
+ s.value=r.kat;
+ buildRW(r.scores,r.yn);
+ $('rwNama').value=r.nama;$('rwSite').value=r.site;$('rwBulan').value=r.bulan;
+ $('rwSaveBtn').textContent=T('btn_update_rw');$('rwCancelBtn').style.display='';
+ $('rwNama').scrollIntoView({behavior:'smooth',block:'center'})}
+function cancelEditRW(){rwEditId=null;
+ $('rwNama').value='';rwFillKat();buildRW();
+ $('rwSaveBtn').textContent=T('rw_save');$('rwCancelBtn').style.display='none'}
 function rwKatLbl(k){return k==='worker'?'Best Safety Worker':k==='staff'?'Best Safety Staff':'Best Safety Branch'}
 function renderRW(){const f=$('rwFilter').value;
  const mf=$('rwMonthFilter')?$('rwMonthFilter').value:'',sf=$('rwSiteFilter')?$('rwSiteFilter').value:'',
@@ -1233,7 +1280,7 @@ function renderRW(){const f=$('rwFilter').value;
   rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td><b>${esc(r.nama)}</b></td><td><span class="tag b">${rwKatLbl(r.kat)}</span></td>
   <td>${esc(r.site)}</td><td>${mLbl(r.bulan)}</td><td>${esc(r.by)}</td><td>${r.tarikh}</td>
   <td><span class="tag ${i===0?'g':'y'}">${r.tot} pts</span></td>
-  <td>${EVAL||adminOK?`<button class="btn red sml" onclick="delItem('rewards','${r.id}')">✕</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
+  <td style="white-space:nowrap">${EVAL||adminOK?`<button class="btn yel sml" onclick="editRW('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('rewards','${r.id}')">✕</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
 
 /* pengurusan ID penilai (admin) */
 function addUser(){const uid_=$('stUid').value.trim(),n=$('stUname').value.trim(),p=$('stUpass').value;
