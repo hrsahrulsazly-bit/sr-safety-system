@@ -152,6 +152,7 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   <button onclick="go('visit',this)">📝 Site Visit</button>
   <button onclick="go('program',this)">📅 Safety Program</button>
   <button onclick="go('reward',this)">🏆 Safety Reward</button>
+  <button onclick="go('attendance',this)">🗒 Attendance Report</button>
 </nav>
 <main>
 
@@ -372,6 +373,47 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   <div class="tblwrap"><table id="rwTbl"></table></div>
 </div>
 
+<!-- ================= ATTENDANCE ================= -->
+<div class="page" id="attendance">
+  <h2 class="sec">🗒 Attendance Report</h2>
+  <div class="tools">
+    <button class="btn" id="attTabMeeting" onclick="attSetKat('meeting')" data-i18n="att_meeting">Safety Meeting</button>
+    <button class="btn ghost" id="attTabWalkabout" onclick="attSetKat('walkabout')" data-i18n="att_walkabout">Safety Walkabout</button>
+  </div>
+  <div class="card">
+    <h3 data-i18n="att_bulk">Upload Excel (Bulk Kehadiran)</h3>
+    <div class="form">
+      <div><label data-i18n="lbl_bulan">Bulan</label><input type="month" id="attBulan"></div>
+      <div><label data-i18n="th_tarikh">Tarikh</label><input type="date" id="attTarikh"></div>
+      <div id="attLokWrap" style="display:none"><label data-i18n="att_lokasi">Branch / Project Site</label><input type="text" id="attLokasi" placeholder="cth: OHDD/KG DELEK KLANG"></div>
+      <div><label data-i18n="att_file">Fail Excel (.xlsx)</label><input type="file" id="attFile" accept=".xlsx" onchange="attParseFile(this)"></div>
+    </div>
+    <div class="sub" data-i18n="att_hint">Excel perlu ada lajur Nama (dan Branch/Designation jika ada). Susun atur lajur bebas — sistem cuba kesan lajur secara automatik.</div>
+    <div id="attPreviewWrap" style="display:none;margin-top:12px">
+      <h3 id="attPreviewTitle" style="margin-bottom:6px"></h3>
+      <div class="tblwrap" style="max-height:320px;overflow:auto"><table id="attPreviewTbl"></table></div>
+      <div class="tools" style="margin-top:10px">
+        <button class="btn" onclick="attConfirmImport()" data-i18n="att_import_btn">✔ Import Rekod</button>
+        <button class="btn ghost" onclick="attCancelPreview()" data-i18n="btn_cancel">Batal</button>
+      </div>
+    </div>
+  </div>
+  <h2 class="sec" data-i18n="att_list">Senarai Kehadiran</h2>
+  <div class="tools"><button class="btn ghost sml" onclick="csv('attendance')">⬇ Export Excel (CSV)</button></div>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="attMonthFilter" onchange="renderATT()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="attSiteFilter" onchange="renderATT()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <span id="attLokFilterWrap" style="display:none;gap:8px;align-items:center">
+      <label class="sub" style="font-weight:600" data-i18n="att_filter_site">Tapis Project Site:</label>
+      <select id="attLokFilter" onchange="renderATT()" style="width:auto;min-width:170px"><option value="" data-i18n="att_all_site">Semua Project Site</option></select>
+    </span>
+    <input type="text" id="attSearch" oninput="renderATT()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  </div>
+  <div class="tblwrap"><table id="attTbl"></table></div>
+</div>
+
 <!-- ================= TETAPAN ================= -->
 <div class="page" id="tetapan">
   <h2 class="sec" data-i18n="st_title">⚙️ Tetapan Sistem</h2>
@@ -556,6 +598,24 @@ rw_input:['Bil. Kali / Skor','Count / Score'],
 rw_remarks:['Remarks','Remarks'],
 rw_max:['maks','max'],
 rw_admin_who:['Admin (Tetapan Sistem)','Admin (System Settings)'],
+att_meeting:['Safety Meeting','Safety Meeting'],att_walkabout:['Safety Walkabout','Safety Walkabout'],
+att_bulk:['Upload Excel (Bulk Kehadiran)','Upload Excel (Bulk Attendance)'],
+att_lokasi:['Branch / Project Site','Branch / Project Site'],
+att_file:['Fail Excel (.xlsx)','Excel File (.xlsx)'],
+att_hint:['Excel perlu ada lajur Nama (dan Branch/Designation jika ada). Susun atur lajur bebas — sistem cuba kesan lajur secara automatik.','Excel needs a Name column (and Branch/Designation if available). Column order is flexible — the system tries to auto-detect columns.'],
+att_list:['Senarai Kehadiran','Attendance List'],
+att_import_btn:['✔ Import Rekod','✔ Import Records'],
+att_preview_title:['Pratonton — {n} rekod dikesan','Preview — {n} records detected'],
+att_pic_name:['PIC Name','PIC Name'],att_pic_branch:['PIC Branch','PIC Branch'],
+att_filter_site:['Tapis Project Site:','Filter Project Site:'],att_all_site:['Semua Project Site','All Project Sites'],
+a_att_notzip:['Fail bukan .xlsx yang sah (bukan format ZIP).','File is not a valid .xlsx (not ZIP format).'],
+a_att_zipbad:['Struktur fail .xlsx tidak disokong.','Unsupported .xlsx file structure.'],
+a_att_zipmethod:['Kaedah mampatan fail tidak disokong.','Unsupported file compression method.'],
+a_att_nosheet:['Tiada helaian dijumpai dalam fail Excel ini.','No sheet found in this Excel file.'],
+a_att_empty:['Tiada nama dikesan dalam fail ini. Sila semak lajur "Nama".','No names detected in this file. Please check the "Name" column.'],
+a_att_err:['Gagal baca fail Excel','Failed to read Excel file'],
+a_att_fill:['Sila isi Bulan dan Tarikh dahulu.','Please fill in Month and Date first.'],
+a_att_ok:['{n} rekod kehadiran berjaya diimport ✔','{n} attendance records imported ✔'],
 a_rw_fail:['ID atau kata laluan salah.','Invalid ID or password.'],
 a_rw_nama:['Sila isi nama calon / branch.','Please enter the nominee / branch name.'],
 a_rw_ok:['Penilaian disimpan ✔','Rating saved ✔'],
@@ -595,8 +655,9 @@ function applyLang(){BLN=BLNS[UI.lang]||BLNS.ms;
  renderAll();buildSV()}
 let D=load();
 D.siteTargets=D.siteTargets||{};
+D.attendance=D.attendance||[];
 function load(){try{const x=JSON.parse(localStorage.getItem(K));if(x)return x}catch(e){}
- return {sites:['OTN Next DC','OSBN'],target:1200000,siteTargets:{},pass:'sradmin',manhours:[],reports:[],programs:[],inspections:[],users:[],rewards:[],tombstones:[],settingsUpdatedAt:0}}
+ return {sites:['OTN Next DC','OSBN'],target:1200000,siteTargets:{},pass:'sradmin',manhours:[],reports:[],programs:[],inspections:[],users:[],rewards:[],attendance:[],tombstones:[],settingsUpdatedAt:0}}
 function persistLocal(){localStorage.setItem(K,JSON.stringify(D));renderAll()}
 function save(){persistLocal();triggerSync()}
 /* ===== KONFIG PELAYAN PUSAT =====
@@ -629,7 +690,7 @@ function mergeD(a,b){const out={};
   (inspections tak dinilai di sini — gambarnya sengaja kekal tempatan sahaja,
   tak pernah dihantar/diresolve ke server, lihat stripPhotos di pushToServer) */
  const isResolved=(ent,r)=>ent==='reports'?!!r.driveFileId:ent==='inspections'?!!r.pdfFileId:ent==='manhours'?!!(r.pic&&String(r.pic).trim()):true;
- ['manhours','reports','inspections','programs','users','rewards'].forEach(ent=>{const map={};
+ ['manhours','reports','inspections','programs','users','rewards','attendance'].forEach(ent=>{const map={};
   [...(a[ent]||[]),...(b[ent]||[])].forEach(r=>{const ex=map[r.id];
    if(!ex){map[r.id]=r;return}
    const rT=r.updatedAt||0,exT=ex.updatedAt||0;
@@ -1282,6 +1343,157 @@ function renderRW(){const f=$('rwFilter').value;
   <td><span class="tag ${i===0?'g':'y'}">${r.tot} pts</span></td>
   <td style="white-space:nowrap">${EVAL||adminOK?`<button class="btn yel sml" onclick="editRW('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('rewards','${r.id}')">✕</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
 
+/* ===== ATTENDANCE REPORT (Safety Meeting / Safety Walkabout) =====
+ * Model: satu rekod = SATU orang hadir SATU sesi (id,kategori,bulan,tarikh,
+ * lokasi(khas walkabout — nama branch/project site sesi tu),nama,branch(site
+ * individu, padan senarai site utama),updatedAt). Bulk import isi banyak
+ * rekod sekali gus dari satu fail .xlsx (metadata sesi — bulan/tarikh/lokasi
+ * — diisi SEKALI di borang, fail Excel cuma perlu senarai Nama+Branch). */
+let attKat='meeting';
+let attPreview=null; /* {rows:[{nama,branch}], headerIdx, nameCol, branchCol} semasa preview sebelum import */
+function attSetKat(k){attKat=k;
+ $('attTabMeeting').className=k==='meeting'?'btn':'btn ghost';
+ $('attTabWalkabout').className=k==='walkabout'?'btn':'btn ghost';
+ $('attLokWrap').style.display=k==='walkabout'?'':'none';
+ attCancelPreview();renderATT()}
+
+/* --- Baca .xlsx native (ZIP + XML), tiada library luaran ---
+ * xlsx = fail ZIP mengandungi XML. DecompressionStream('deflate-raw') ialah
+ * API pelayar terbina-dalam (bukan library pihak ketiga) untuk nyahmampat. */
+async function xlsxReadFirstSheet(file){
+ const buf=await file.arrayBuffer();
+ const dv=new DataView(buf);
+ const bytes=new Uint8Array(buf);
+ let eocd=-1;
+ for(let i=bytes.length-22;i>=Math.max(0,bytes.length-22-65557);i--){
+  if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}
+ }
+ if(eocd<0)throw new Error(T('a_att_notzip'));
+ const cdCount=dv.getUint16(eocd+10,true);
+ const cdOffset=dv.getUint32(eocd+16,true);
+ const entries={};
+ let p=cdOffset;
+ for(let i=0;i<cdCount;i++){
+  if(dv.getUint32(p,true)!==0x02014b50)throw new Error(T('a_att_zipbad'));
+  const method=dv.getUint16(p+10,true);
+  const compSize=dv.getUint32(p+20,true);
+  const nameLen=dv.getUint16(p+28,true);
+  const extraLen=dv.getUint16(p+30,true);
+  const commentLen=dv.getUint16(p+32,true);
+  const localOffset=dv.getUint32(p+42,true);
+  const name=new TextDecoder().decode(bytes.subarray(p+46,p+46+nameLen));
+  entries[name]={method,compSize,localOffset};
+  p+=46+nameLen+extraLen+commentLen;
+ }
+ async function extract(name){
+  const e=entries[name];if(!e)return null;
+  const lp=e.localOffset;
+  if(dv.getUint32(lp,true)!==0x04034b50)throw new Error(T('a_att_zipbad'));
+  const lNameLen=dv.getUint16(lp+26,true);
+  const lExtraLen=dv.getUint16(lp+28,true);
+  const dataStart=lp+30+lNameLen+lExtraLen;
+  const raw=bytes.subarray(dataStart,dataStart+e.compSize);
+  if(e.method===0)return raw;
+  if(e.method!==8)throw new Error(T('a_att_zipmethod'));
+  const ds=new DecompressionStream('deflate-raw');
+  const w=ds.writable.getWriter();w.write(raw);w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+ }
+ const sharedBytes=await extract('xl/sharedStrings.xml');
+ const shared=[];
+ if(sharedBytes){
+  const doc=new DOMParser().parseFromString(new TextDecoder('utf-8').decode(sharedBytes),'application/xml');
+  doc.querySelectorAll('si').forEach(si=>{let txt='';si.querySelectorAll('t').forEach(t=>{txt+=t.textContent});shared.push(txt)});
+ }
+ let sheetName='xl/worksheets/sheet1.xml';
+ if(!entries[sheetName])sheetName=Object.keys(entries).find(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+ const sheetBytes=sheetName?await extract(sheetName):null;
+ if(!sheetBytes)throw new Error(T('a_att_nosheet'));
+ const doc=new DOMParser().parseFromString(new TextDecoder('utf-8').decode(sheetBytes),'application/xml');
+ const rows=[];
+ doc.querySelectorAll('row').forEach(rowEl=>{
+  const cells=[];
+  rowEl.querySelectorAll('c').forEach(c=>{
+   const ref=c.getAttribute('r')||'';
+   const colLetters=(ref.match(/^[A-Z]+/)||[''])[0];
+   const colIdx=colLetters?colLetters.split('').reduce((a,ch)=>a*26+(ch.charCodeAt(0)-64),0)-1:cells.length;
+   const type=c.getAttribute('t');
+   let val='';
+   if(type==='inlineStr'){const isEl=c.querySelector('is');val=isEl?isEl.textContent:''}
+   else{const v=c.querySelector('v');const raw=v?v.textContent:'';val=type==='s'?(shared[+raw]||''):raw}
+   cells[colIdx]=val;
+  });
+  rows.push(cells);
+ });
+ return rows}
+
+function attFindCols(rows){
+ for(let i=0;i<Math.min(rows.length,15);i++){
+  const row=rows[i]||[];
+  const nameCol=row.findIndex(c=>c&&/nama|^name$/i.test(String(c).trim()));
+  if(nameCol>=0){
+   const branchCol=row.findIndex(c=>c&&/branch|cawangan|design/i.test(String(c)));
+   return{headerIdx:i,nameCol,branchCol}
+  }
+ }
+ return{headerIdx:-1,nameCol:0,branchCol:1}}
+
+async function attParseFile(inp){
+ const f=inp.files[0];if(!f)return;
+ try{
+  const rows=await xlsxReadFirstSheet(f);
+  const{headerIdx,nameCol,branchCol}=attFindCols(rows);
+  const startRow=headerIdx>=0?headerIdx+1:0;
+  const parsed=[];
+  for(let i=startRow;i<rows.length;i++){
+   const row=rows[i]||[];
+   const nama=String(row[nameCol]||'').trim();
+   if(!nama)continue;
+   const branch=branchCol>=0?String(row[branchCol]||'').trim():'';
+   parsed.push({nama,branch});
+  }
+  if(!parsed.length){inp.value='';return alert(T('a_att_empty'))}
+  attPreview=parsed;
+  $('attPreviewTitle').textContent=T('att_preview_title').replace('{n}',parsed.length);
+  $('attPreviewTbl').innerHTML=`<tr><th>#</th><th>${T('att_pic_name')}</th><th>${T('att_pic_branch')}</th></tr>`+
+   parsed.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td></tr>`).join('');
+  $('attPreviewWrap').style.display='';
+ }catch(err){inp.value='';alert(T('a_att_err')+': '+err.message)}}
+
+function attCancelPreview(){attPreview=null;$('attPreviewWrap').style.display='none';$('attFile').value=''}
+
+function attConfirmImport(){
+ if(!attPreview||!attPreview.length)return;
+ const bulan=$('attBulan').value,tarikh=$('attTarikh').value;
+ if(!bulan||!tarikh)return alert(T('a_att_fill'));
+ const lokasi=attKat==='walkabout'?$('attLokasi').value.trim():'';
+ const now=Date.now();
+ attPreview.forEach(r=>{
+  D.attendance.push({id:uid(),kategori:attKat,bulan,tarikh,lokasi,nama:r.nama,branch:r.branch,updatedAt:now});
+ });
+ const n=attPreview.length;
+ save();attCancelPreview();alert(T('a_att_ok').replace('{n}',n))}
+
+function attFillLokFilter(){const s=$('attLokFilter');if(!s)return;const v=s.value;
+ const loks=[...new Set((D.attendance||[]).filter(r=>r.kategori==='walkabout').map(r=>r.lokasi).filter(Boolean))].sort();
+ s.innerHTML=`<option value="">${T('att_all_site')}</option>`+loks.map(l=>`<option>${esc(l)}</option>`).join('');
+ s.value=loks.includes(v)?v:''}
+function renderATT(){
+ const mf=$('attMonthFilter')?$('attMonthFilter').value:'',sf=$('attSiteFilter')?$('attSiteFilter').value:'',
+  lf=$('attLokFilter')?$('attLokFilter').value:'',
+  q=($('attSearch')?$('attSearch').value:'').trim().toLowerCase();
+ const showLok=attKat==='walkabout';
+ attFillLokFilter();
+ $('attLokFilterWrap').style.display=showLok?'contents':'none';
+ let rows=(D.attendance||[]).filter(r=>r.kategori===attKat).sort((a,b)=>b.tarikh.localeCompare(a.tarikh));
+ if(mf)rows=rows.filter(r=>r.bulan===mf);
+ if(sf)rows=rows.filter(r=>r.branch===sf);
+ if(showLok&&lf)rows=rows.filter(r=>r.lokasi===lf);
+ if(q)rows=rows.filter(r=>[r.nama,r.lokasi].some(v=>String(v||'').toLowerCase().includes(q)));
+ $('attTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>${T('lbl_bulan')}</th>${showLok?`<th>${T('att_lokasi')}</th>`:''}<th>${T('att_pic_name')}</th><th>${T('att_pic_branch')}</th><th></th></tr>`+
+  rows.map(r=>`<tr><td>${r.tarikh}</td><td>${mLbl(r.bulan)}</td>${showLok?`<td>${esc(r.lokasi)||'-'}</td>`:''}<td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td>
+  <td><button class="btn red sml" onclick="delItem('attendance','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="${showLok?6:5}" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
+
 /* pengurusan ID penilai (admin) */
 function addUser(){const uid_=$('stUid').value.trim(),n=$('stUname').value.trim(),p=$('stUpass').value;
  if(!uid_||!n||p.length<4)return alert(T('a_user_fill'));
@@ -1347,12 +1559,13 @@ function fillMonthFilter(id,arr,ymOf){const s=$(id);if(!s)return;const v=s.value
  s.value=yms.includes(v)?v:''}
 function fillListFilters(){
  fillSiteFilter('mhSiteFilter');fillSiteFilter('rpSiteFilter');fillSiteFilter('pgSiteFilter');
- fillSiteFilter('svSiteFilter');fillSiteFilter('rwSiteFilter');
+ fillSiteFilter('svSiteFilter');fillSiteFilter('rwSiteFilter');fillSiteFilter('attSiteFilter');
  fillMonthFilter('mhMonthFilter',D.manhours,r=>r.bulan);
  fillMonthFilter('rpMonthFilter',D.reports,r=>r.bulan);
  fillMonthFilter('pgMonthFilter',D.programs,r=>r.tarikh?r.tarikh.slice(0,7):'');
  fillMonthFilter('svMonthFilter',D.inspections||[],r=>r.tarikh?r.tarikh.slice(0,7):'');
- fillMonthFilter('rwMonthFilter',D.rewards||[],r=>r.bulan)}
+ fillMonthFilter('rwMonthFilter',D.rewards||[],r=>r.bulan);
+ fillMonthFilter('attMonthFilter',D.attendance||[],r=>r.bulan)}
 function renderDash(){
  const filterSite=$('dSiteFilter')?$('dSiteFilter').value:'';
  const bySite=arr=>filterSite?arr.filter(r=>r.site===filterSite):arr;
@@ -1420,7 +1633,7 @@ function backup(){const a=document.createElement('a');
 function restore(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();
  rd.onload=e=>{try{const x=JSON.parse(e.target.result);if(!x.sites||!x.manhours)throw 0;
   if(confirm('GABUNG dengan data sedia ada? (OK = gabung, Cancel = ganti sepenuhnya)')){
-   ['manhours','reports','programs','inspections','users','rewards'].forEach(k=>{if(!D[k])D[k]=[];const ids=new Set((D[k]||[]).map(r=>r.id));(x[k]||[]).forEach(r=>{if(!ids.has(r.id))D[k].push(r)})});
+   ['manhours','reports','programs','inspections','users','rewards','attendance'].forEach(k=>{if(!D[k])D[k]=[];const ids=new Set((D[k]||[]).map(r=>r.id));(x[k]||[]).forEach(r=>{if(!ids.has(r.id))D[k].push(r)})});
    x.sites.forEach(s=>{if(!D.sites.includes(s))D.sites.push(s)});
    if(!D.tombstones)D.tombstones=[];
    (x.tombstones||[]).forEach(t=>{if(!D.tombstones.some(e=>e.ent===t.ent&&e.id===t.id))D.tombstones.push(t)});
@@ -1442,6 +1655,8 @@ function csv(kind){let head,rows,name;
   rows=D.programs.map(r=>[r.tarikh,r.nama,r.jenis,r.site,r.pic,r.status,r.detail]);name='Safety-Program'}
  if(kind==='rewards'){head=['Tarikh','Bulan','Kategori','Nama','Site','Penilai','Jumlah Pts'];
   rows=(D.rewards||[]).map(r=>[r.tarikh,r.bulan,rwKatLbl(r.kat),r.nama,r.site,r.by,r.tot]);name='Safety-Reward'}
+ if(kind==='attendance'){head=['Kategori','Tarikh','Bulan','Lokasi','Nama','Branch'];
+  rows=(D.attendance||[]).filter(r=>r.kategori===attKat).map(r=>[r.kategori,r.tarikh,r.bulan,r.lokasi||'',r.nama,r.branch||'']);name='Safety-Attendance-'+attKat}
  if(!rows.length)return alert('Tiada data untuk diexport.');
  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const txt='﻿'+[head,...rows].map(r=>r.map(q).join(',')).join('\r\n');
@@ -1449,7 +1664,7 @@ function csv(kind){let head,rows,name;
  a.download=name+'-'+todayStr()+'.csv';a.click()}
 
 /* ===== RENDER ALL ===== */
-function renderAll(){fillSites();fillDashFilter();fillDashMonthFilter();fillListFilters();renderMH();renderRP();renderSV();renderPG();renderRW();renderUsers();renderDash();renderST()}
+function renderAll(){fillSites();fillDashFilter();fillDashMonthFilter();fillListFilters();renderMH();renderRP();renderSV();renderPG();renderRW();renderATT();renderUsers();renderDash();renderST()}
 if(!D.inspections)D.inspections=[];
 if(!D.users)D.users=[];if(!D.rewards)D.rewards=[];
 if(!D.tombstones)D.tombstones=[];if(!D.settingsUpdatedAt)D.settingsUpdatedAt=0;
