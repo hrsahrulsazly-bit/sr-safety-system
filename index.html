@@ -159,6 +159,8 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
 <!-- ================= DASHBOARD ================= -->
 <div class="page active" id="dash">
   <div class="tools" style="justify-content:flex-end">
+    <label style="font-size:12px;font-weight:600;color:var(--mut);margin:0" data-i18n="d_filter_yr">Tapis Tahun:</label>
+    <select id="dYearFilter" onchange="renderDash()" style="width:auto;min-width:100px"></select>
     <label style="font-size:12px;font-weight:600;color:var(--mut);margin:0" data-i18n="d_filter_mth">Tapis Bulan:</label>
     <select id="dMonthFilter" onchange="renderDash()" style="width:auto;min-width:150px"></select>
     <label style="font-size:12px;font-weight:600;color:var(--mut);margin:0" data-i18n="d_filter">Tapis Site:</label>
@@ -168,20 +170,20 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   </div>
   <div id="dashAlert"></div>
   <div class="grid g4">
-    <div class="card"><h3 data-i18n="d_mh">Manhour Kumulatif (Tahun Ini)</h3><div class="big" id="dTotalMH">0</div>
+    <div class="card"><h3 id="dMHTitle">Manhour Kumulatif</h3><div class="big" id="dTotalMH">0</div>
       <div class="sub">Target KPI: <b id="dTarget">1,200,000</b> manhour</div>
       <div class="bar"><div id="dBar" style="width:0%"></div></div>
       <div class="sub" id="dPct">0%</div>
-      <div class="sub"><span data-i18n="d_hari">Jumlah Hari (Tahun Ini):</span> <b id="dHariYTD">0</b></div></div>
+      <div class="sub"><span id="dHariTitle">Jumlah Hari:</span> <b id="dHariYTD">0</b></div></div>
     <div class="card"><h3 data-i18n="d_rep">Report Bulanan Diterima</h3><div class="big" id="dLTI">0</div><div class="sub" id="dNM"></div></div>
     <div class="card"><h3 data-i18n="d_prog">Program Safety</h3><div class="big" id="dProg">0</div><div class="sub" id="dProgSub"></div></div>
-    <div class="card"><h3 data-i18n="d_lti">Kes LTI (Tahun Ini)</h3><div class="big" id="dLTICount">0</div><div class="sub" id="dLTISub"></div></div>
+    <div class="card"><h3 id="dLTITitle">Kes LTI</h3><div class="big" id="dLTICount">0</div><div class="sub" id="dLTISub"></div></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
     <div class="card"><h3 data-i18n="d_chart">Manhour Bulanan</h3><div class="chart" id="dChart"></div></div>
     <div class="card"><h3 data-i18n="d_next">Program Akan Datang</h3><div id="dNext" style="font-size:13px"></div></div>
   </div>
-  <div class="card" style="margin-top:14px"><h3 data-i18n="d_site">Status Report Bulanan Mengikut Site (Deadline: sebelum 7hb bulan berikutnya)</h3><div class="tblwrap" style="box-shadow:none"><table id="dSiteTbl"></table></div></div>
+  <div class="card" style="margin-top:14px"><h3 id="dSiteTitle" data-i18n="d_site">Status Report Bulanan Mengikut Site (Deadline: sebelum 7hb bulan berikutnya)</h3><div class="tblwrap" style="box-shadow:none"><table id="dSiteTbl"></table></div></div>
 </div>
 
 <!-- ================= MANHOUR ================= -->
@@ -501,18 +503,21 @@ try{const u=JSON.parse(localStorage.getItem('srg_ui'));if(u)UI=u}catch(e){}
 const DICT={
 sub_title:['Safety Committee — Sistem Pengurusan Keselamatan Online','Safety Committee — Online Safety Management System'],
 loading_txt:['Memuatkan data...','Loading data...'],
-d_mh:['Manhour Kumulatif (Tahun Ini)','Cumulative Manhours (This Year)'],
+d_mh_y:['Manhour Kumulatif ({y})','Cumulative Manhours ({y})'],
 d_rep:['Report Bulanan Diterima','Monthly Reports Received'],
 d_prog:['Program Safety','Safety Programs'],
 d_chart:['Manhour Bulanan','Monthly Manhours'],
-d_hari:['Jumlah Hari (Tahun Ini):','Total Days (This Year):'],
+d_hari_y:['Jumlah Hari ({y}):','Total Days ({y}):'],
 d_next:['Program Akan Datang','Upcoming Programs'],
 d_filter:['Tapis Site:','Filter Site:'],d_filter_all:['Semua Site','All Sites'],
 d_filter_mth:['Tapis Bulan:','Filter Month:'],
+d_filter_yr:['Tapis Tahun:','Filter Year:'],
 f_all_month:['Semua Bulan','All Months'],f_search_ph:['Cari...','Search...'],
 f_status:['Status:','Status:'],f_all_status:['Semua Status','All Status'],
 f_type:['Jenis:','Type:'],f_all_type:['Semua Jenis','All Types'],
 d_site:['Status Report Bulanan Mengikut Site (Deadline: sebelum 7hb bulan berikutnya)','Monthly Report Status by Site (Deadline: before the 7th of the following month)'],
+d_site_bymonth:['Status Report Bulanan — {s} (Semua Bulan)','Monthly Report Status — {s} (All Months)'],
+d_pick_site_hint:['Sila pilih satu Site untuk lihat status ikut bulan bila Tapis Bulan = Semua Bulan.','Please select a specific Site to see the month-by-month status when Filter Month = All Months.'],
 of_target:['daripada target tahunan','of annual target'],
 from_sites:['daripada {n} site telah upload report {m}','of {n} sites have uploaded the {m} report'],
 prog_sub:['Selesai: {a} | Dirancang: {b}','Completed: {a} | Planned: {b}'],
@@ -522,7 +527,7 @@ lbl_hari:['Jumlah Hari','No. of Days'],
 lbl_lti:['Bil. Kes LTI (Kemalangan)','No. of LTI Cases (Accident)'],
 lbl_remark:['Remark','Remark'],lbl_remark_ph:['Catatan kemalangan / lain-lain (jika ada)','Accident notes / others (if any)'],
 th_lti:['LTI','LTI'],th_remark:['Remark','Remark'],
-d_lti:['Kes LTI (Tahun Ini)','LTI Cases (This Year)'],
+d_lti_y:['Kes LTI ({y})','LTI Cases ({y})'],
 lti_none:['Tiada','None'],
 lti_sub:['⚠️ Ada kemalangan direkod — semak Remark','⚠️ Accident(s) recorded — check Remark'],
 lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this year'],
@@ -1705,8 +1710,14 @@ function fillDashFilter(){const s=$('dSiteFilter');if(!s)return;const v=s.value;
 function fillDashMonthFilter(){const s=$('dMonthFilter');if(!s)return;const v=s.value;
  const pm=prevMonth();let[y,m]=pm.split('-').map(Number);const opts=[];
  for(let i=0;i<12;i++){opts.push(y+'-'+String(m).padStart(2,'0'));m--;if(m<1){m=12;y--}}
- s.innerHTML=opts.map(ym=>`<option value="${ym}">${mLbl(ym)}</option>`).join('');
- s.value=opts.includes(v)?v:pm}
+ s.innerHTML=`<option value="" data-i18n="f_all_month">${T('f_all_month')}</option>`+opts.map(ym=>`<option value="${ym}">${mLbl(ym)}</option>`).join('');
+ s.value=[''].concat(opts).includes(v)?v:pm}
+function fillDashYearFilter(){const s=$('dYearFilter');if(!s)return;const v=s.value;
+ const years=new Set([String(thisYear)]);
+ D.manhours.forEach(r=>{if(r.bulan)years.add(r.bulan.slice(0,4))});
+ const opts=[...years].sort().reverse();
+ s.innerHTML=opts.map(y=>`<option value="${y}">${y}</option>`).join('');
+ s.value=opts.includes(v)?v:String(thisYear)}
 /* ===== Filter & carian (Manhour/Report/Program) ===== */
 function fillSiteFilter(id){const s=$(id);if(!s)return;const v=s.value;
  s.innerHTML=`<option value="">${T('d_filter_all')}</option>`+D.sites.map(x=>`<option>${esc(x)}</option>`).join('');
@@ -1725,18 +1736,27 @@ function fillListFilters(){
  fillMonthFilter('rwMonthFilter',D.rewards||[],r=>r.bulan);
  fillMonthFilter('attMonthFilter',D.attendance||[],r=>r.bulan);
  fillMonthFilter('attRkMonthFilter',D.attendance||[],r=>r.bulan)}
+function dashMonthsForYear(y){
+ const cap=y===String(thisYear)?+prevMonth().slice(5,7):12;
+ const months=[];for(let m=1;m<=cap;m++)months.push(y+'-'+String(m).padStart(2,'0'));
+ return months}
 function renderDash(){
  const filterSite=$('dSiteFilter')?$('dSiteFilter').value:'';
  const bySite=arr=>filterSite?arr.filter(r=>r.site===filterSite):arr;
  const sitesList=filterSite?[filterSite]:D.sites;
- const mhY=bySite(D.manhours.filter(r=>r.bulan.startsWith(thisYear)));
+ const selYear=($('dYearFilter')&&$('dYearFilter').value)||String(thisYear);
+ $('dMHTitle').textContent=T('d_mh_y').replace('{y}',selYear);
+ $('dHariTitle').textContent=T('d_hari_y').replace('{y}',selYear);
+ $('dLTITitle').textContent=T('d_lti_y').replace('{y}',selYear);
+ const mhY=bySite(D.manhours.filter(r=>r.bulan.startsWith(selYear)));
  const tot=mhY.reduce((t,r)=>t+r.jam,0);
  const totHari=mhY.reduce((t,r)=>t+(r.hari||0),0);
  const tgt=filterSite?(D.siteTargets[filterSite]||D.target):D.target;
  $('dTotalMH').textContent=fmt(tot);$('dTarget').textContent=fmt(tgt);$('dHariYTD').textContent=fmt(totHari);
  const pct=Math.min(100,Math.round(tot/tgt*100));
  $('dBar').style.width=pct+'%';$('dPct').textContent=pct+'% '+T('of_target');
- const rm=($('dMonthFilter')&&$('dMonthFilter').value)||prevMonth();
+ const rmSel=$('dMonthFilter')?$('dMonthFilter').value:'';
+ const rm=rmSel||prevMonth();
  const isCurRM=rm===prevMonth();
  const got=sitesList.filter(s=>D.reports.some(r=>r.bulan===rm&&r.site===s)).length;
  $('dLTI').textContent=got;$('dLTI').style.color=got>=sitesList.length?'var(--grn)':'var(--red)';
@@ -1756,12 +1776,29 @@ function renderDash(){
  const today=todayStr();
  const up=progFiltered.filter(p=>p.status==='Dirancang'&&p.tarikh>=today).sort((a,b)=>a.tarikh.localeCompare(b.tarikh)).slice(0,5);
  $('dNext').innerHTML=up.length?up.map(p=>`<div style="padding:7px 0;border-bottom:1px solid var(--bor)"><b>${p.tarikh}</b> — ${esc(p.nama)} <span class="tag b">${esc(p.site)}</span><br><span class="sub">PIC: ${esc(p.pic)||'-'}</span></div>`).join(''):`<span class="sub">${T('d_next_none')}</span>`;
- /* site status table — semak bulan pelaporan (bulan sebelumnya) */
+ /* site status table — semak bulan pelaporan (bulan sebelumnya), ATAU bila
+  Tapis Bulan="Semua" + satu site dipilih, tukar jadi satu baris setiap bulan
+  (Jan hingga bulan terkini/prevMonth() tahun semasa, atau Dis penuh utk
+  tahun lampau) bagi site tu. */
  const now=new Date();
- $('dSiteTbl').innerHTML=`<tr><th>${T('lbl_site')}</th><th>Manhour ${mLbl(rm)}</th><th>Report ${mLbl(rm)}</th></tr>`+
-  sitesList.map(s=>{const mh=D.manhours.filter(r=>r.bulan===rm&&r.site===s).reduce((t,r)=>t+r.jam,0);
-   const hasRp=D.reports.some(r=>r.bulan===rm&&r.site===s);
-   return`<tr><td><b>${esc(s)}</b></td><td>${mh?fmt(mh):`<span class="tag r">${T('tag_none')}</span>`}</td><td>${hasRp?`<span class="tag g">${T('tag_ok')}</span>`:`<span class="tag r">${T('tag_no')}</span>`}</td></tr>`}).join('');
+ if(!rmSel&&filterSite){
+  $('dSiteTitle').textContent=T('d_site_bymonth').replace('{s}',filterSite);
+  const months=dashMonthsForYear(selYear);
+  $('dSiteTbl').innerHTML=`<tr><th>${T('lbl_bulan')}</th><th>Manhour</th><th>Report</th></tr>`+
+   (months.map(m=>{const mh=D.manhours.filter(r=>r.bulan===m&&r.site===filterSite).reduce((t,r)=>t+r.jam,0);
+    const hasRp=D.reports.some(r=>r.bulan===m&&r.site===filterSite);
+    return`<tr><td><b>${mLbl(m)}</b></td><td>${mh?fmt(mh):`<span class="tag r">${T('tag_none')}</span>`}</td><td>${hasRp?`<span class="tag g">${T('tag_ok')}</span>`:`<span class="tag r">${T('tag_no')}</span>`}</td></tr>`}).join('')
+    ||`<tr><td colspan="3" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`);
+ }else if(!rmSel){
+  $('dSiteTitle').textContent=T('d_site');
+  $('dSiteTbl').innerHTML=`<tr><td colspan="3" style="text-align:center;color:#999">${T('d_pick_site_hint')}</td></tr>`;
+ }else{
+  $('dSiteTitle').textContent=T('d_site');
+  $('dSiteTbl').innerHTML=`<tr><th>${T('lbl_site')}</th><th>Manhour ${mLbl(rm)}</th><th>Report ${mLbl(rm)}</th></tr>`+
+   sitesList.map(s=>{const mh=D.manhours.filter(r=>r.bulan===rm&&r.site===s).reduce((t,r)=>t+r.jam,0);
+    const hasRp=D.reports.some(r=>r.bulan===rm&&r.site===s);
+    return`<tr><td><b>${esc(s)}</b></td><td>${mh?fmt(mh):`<span class="tag r">${T('tag_none')}</span>`}</td><td>${hasRp?`<span class="tag g">${T('tag_ok')}</span>`:`<span class="tag r">${T('tag_no')}</span>`}</td></tr>`}).join('');
+ }
  /* deadline alert: report bulan X kena hantar sebelum 7hb bulan X+1 */
  const day=now.getDate();const cmName=BLN[now.getMonth()];
  const missing=sitesList.filter(s=>!D.reports.some(r=>r.bulan===rm&&r.site===s)||!D.manhours.some(r=>r.bulan===rm&&r.site===s));
@@ -1823,7 +1860,7 @@ function csv(kind){let head,rows,name;
  a.download=name+'-'+todayStr()+'.csv';a.click()}
 
 /* ===== RENDER ALL ===== */
-function renderAll(){fillSites();fillDashFilter();fillDashMonthFilter();fillListFilters();renderMH();renderRP();renderSV();renderPG();renderRW();renderATT();renderUsers();renderDash();renderST()}
+function renderAll(){fillSites();fillDashFilter();fillDashMonthFilter();fillDashYearFilter();fillListFilters();renderMH();renderRP();renderSV();renderPG();renderRW();renderATT();renderUsers();renderDash();renderST()}
 if(!D.inspections)D.inspections=[];
 if(!D.users)D.users=[];if(!D.rewards)D.rewards=[];
 if(!D.tombstones)D.tombstones=[];if(!D.settingsUpdatedAt)D.settingsUpdatedAt=0;
