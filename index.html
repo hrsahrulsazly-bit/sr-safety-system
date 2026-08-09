@@ -382,7 +382,12 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   </div>
   <div class="card">
     <h3 data-i18n="att_bulk">Upload Excel (Bulk Kehadiran)</h3>
-    <div class="form">
+    <div class="tools" style="margin-bottom:4px">
+      <button class="btn ghost sml" onclick="attDownloadTemplate('meeting')" data-i18n="att_tpl_meeting">⬇ Template Excel (Safety Meeting)</button>
+      <button class="btn ghost sml" onclick="attDownloadTemplate('walkabout')" data-i18n="att_tpl_walkabout">⬇ Template Excel (Safety Walkabout)</button>
+    </div>
+    <div class="sub" data-i18n="att_tpl_hint">Muat turun template, isi Nama & Branch pekerja yang hadir, kemudian upload semula fail yang sama di bawah.</div>
+    <div class="form" style="margin-top:10px">
       <div><label data-i18n="lbl_bulan">Bulan</label><input type="month" id="attBulan"></div>
       <div><label data-i18n="th_tarikh">Tarikh</label><input type="date" id="attTarikh"></div>
       <div id="attLokWrap" style="display:none"><label data-i18n="att_lokasi">Branch / Project Site</label><input type="text" id="attLokasi" placeholder="cth: OHDD/KG DELEK KLANG"></div>
@@ -603,6 +608,9 @@ att_bulk:['Upload Excel (Bulk Kehadiran)','Upload Excel (Bulk Attendance)'],
 att_lokasi:['Branch / Project Site','Branch / Project Site'],
 att_file:['Fail Excel (.xlsx)','Excel File (.xlsx)'],
 att_hint:['Excel perlu ada lajur Nama (dan Branch/Designation jika ada). Susun atur lajur bebas — sistem cuba kesan lajur secara automatik.','Excel needs a Name column (and Branch/Designation if available). Column order is flexible — the system tries to auto-detect columns.'],
+att_tpl_meeting:['⬇ Template Excel (Safety Meeting)','⬇ Excel Template (Safety Meeting)'],
+att_tpl_walkabout:['⬇ Template Excel (Safety Walkabout)','⬇ Excel Template (Safety Walkabout)'],
+att_tpl_hint:['Muat turun template, isi Nama & Branch pekerja yang hadir, kemudian upload semula fail yang sama di bawah.','Download the template, fill in the Name & Branch of attendees, then upload the same file back below.'],
 att_list:['Senarai Kehadiran','Attendance List'],
 att_import_btn:['✔ Import Rekod','✔ Import Records'],
 att_preview_title:['Pratonton — {n} rekod dikesan','Preview — {n} records detected'],
@@ -1356,6 +1364,82 @@ function attSetKat(k){attKat=k;
  $('attTabWalkabout').className=k==='walkabout'?'btn':'btn ghost';
  $('attLokWrap').style.display=k==='walkabout'?'':'none';
  attCancelPreview();renderATT()}
+
+/* --- Jana .xlsx native (ZIP + XML), pasangan xlsxReadFirstSheet() di bawah ---
+ * CompressionStream('deflate-raw') ialah API pelayar terbina-dalam (bukan
+ * library pihak ketiga) untuk mampat. Guna sel t="inlineStr" (bukan
+ * sharedStrings) — lebih ringkas, tetap format xlsx sah yang Excel/Google
+ * Sheets boleh buka terus. */
+function xmlEsc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function zipCrc32(bytes){let c,crc=0xFFFFFFFF;
+ for(let i=0;i<bytes.length;i++){c=(crc^bytes[i])&0xFF;
+  for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+  crc=(crc>>>8)^c}
+ return(crc^0xFFFFFFFF)>>>0}
+async function zipDeflate(bytes){
+ const cs=new CompressionStream('deflate-raw');
+ const w=cs.writable.getWriter();w.write(bytes);w.close();
+ return new Uint8Array(await new Response(cs.readable).arrayBuffer())}
+function xlsxColLetter(n){let s='';n++;while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26)}return s}
+async function xlsxBuildSimple(headerCells){
+ const enc=new TextEncoder();
+ const cellsXml=headerCells.map((v,i)=>`<c r="${xlsxColLetter(i)}1" t="inlineStr"><is><t>${xmlEsc(v)}</t></is></c>`).join('');
+ const sheetXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">${cellsXml}</row></sheetData></worksheet>`;
+ const workbookXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+ const workbookRelsXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+ const rootRelsXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+ const contentTypesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+ const files=[
+  {name:'[Content_Types].xml',data:contentTypesXml},
+  {name:'_rels/.rels',data:rootRelsXml},
+  {name:'xl/workbook.xml',data:workbookXml},
+  {name:'xl/_rels/workbook.xml.rels',data:workbookRelsXml},
+  {name:'xl/worksheets/sheet1.xml',data:sheetXml}
+ ];
+ let localParts=[],centralParts=[],offset=0;
+ for(const f of files){
+  const nameBytes=enc.encode(f.name);
+  const dataBytes=enc.encode(f.data);
+  const compBytes=await zipDeflate(dataBytes);
+  const crc=zipCrc32(dataBytes);
+  const lh=new Uint8Array(30);const lv=new DataView(lh.buffer);
+  lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0,true);
+  lv.setUint16(8,8,true);lv.setUint16(10,0,true);lv.setUint16(12,0,true);
+  lv.setUint32(14,crc,true);lv.setUint32(18,compBytes.length,true);lv.setUint32(22,dataBytes.length,true);
+  lv.setUint16(26,nameBytes.length,true);lv.setUint16(28,0,true);
+  const localEntry=new Uint8Array(lh.length+nameBytes.length+compBytes.length);
+  localEntry.set(lh,0);localEntry.set(nameBytes,lh.length);localEntry.set(compBytes,lh.length+nameBytes.length);
+  localParts.push(localEntry);
+  const ch=new Uint8Array(46);const cv=new DataView(ch.buffer);
+  cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0,true);
+  cv.setUint16(10,8,true);cv.setUint16(12,0,true);cv.setUint16(14,0,true);
+  cv.setUint32(16,crc,true);cv.setUint32(20,compBytes.length,true);cv.setUint32(24,dataBytes.length,true);
+  cv.setUint16(28,nameBytes.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);
+  cv.setUint16(34,0,true);cv.setUint16(36,0,true);cv.setUint32(38,0,true);cv.setUint32(42,offset,true);
+  const centralEntry=new Uint8Array(ch.length+nameBytes.length);
+  centralEntry.set(ch,0);centralEntry.set(nameBytes,ch.length);
+  centralParts.push(centralEntry);
+  offset+=localEntry.length}
+ const localLen=localParts.reduce((a,b)=>a+b.length,0);
+ const centralLen=centralParts.reduce((a,b)=>a+b.length,0);
+ const eocd=new Uint8Array(22);const ev=new DataView(eocd.buffer);
+ ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);
+ ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
+ ev.setUint32(12,centralLen,true);ev.setUint32(16,localLen,true);ev.setUint16(20,0,true);
+ const out=new Uint8Array(localLen+centralLen+eocd.length);
+ let o=0;
+ localParts.forEach(p=>{out.set(p,o);o+=p.length});
+ centralParts.forEach(p=>{out.set(p,o);o+=p.length});
+ out.set(eocd,o);
+ return out}
+async function attDownloadTemplate(kat){
+ const header=kat==='meeting'?['NAME','BRANCH/DESIGNATION']:['NAME','BRANCH'];
+ const bytes=await xlsxBuildSimple(header);
+ const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='Template-Attendance-'+kat+'.xlsx';
+ a.click()}
 
 /* --- Baca .xlsx native (ZIP + XML), tiada library luaran ---
  * xlsx = fail ZIP mengandungi XML. DecompressionStream('deflate-raw') ialah
