@@ -377,9 +377,11 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
 <div class="page" id="attendance">
   <h2 class="sec">🗒 Attendance Report</h2>
   <div class="tools">
-    <button class="btn" id="attTabMeeting" onclick="attSetKat('meeting')" data-i18n="att_meeting">Safety Meeting</button>
-    <button class="btn ghost" id="attTabWalkabout" onclick="attSetKat('walkabout')" data-i18n="att_walkabout">Safety Walkabout</button>
+    <button class="btn" id="attTabMeeting" onclick="attSetView('meeting')" data-i18n="att_meeting">Safety Meeting</button>
+    <button class="btn ghost" id="attTabWalkabout" onclick="attSetView('walkabout')" data-i18n="att_walkabout">Safety Walkabout</button>
+    <button class="btn ghost" id="attTabRanking" onclick="attSetView('ranking')" data-i18n="att_rank_tab">🏆 Ranking</button>
   </div>
+  <div id="attMainWrap">
   <div class="card">
     <h3 data-i18n="att_bulk">Upload Excel (Bulk Kehadiran)</h3>
     <div class="tools" style="margin-bottom:4px">
@@ -417,6 +419,8 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <input type="text" id="attSearch" oninput="renderATT()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
   </div>
   <div class="tblwrap"><table id="attTbl"></table></div>
+  </div>
+  <div id="attRankWrap" style="display:none">
   <h2 class="sec" data-i18n="att_rank_title">🏆 Attendance Ranking</h2>
   <div class="tools">
     <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
@@ -425,6 +429,7 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <select id="attRkSiteFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
   </div>
   <div class="tblwrap"><table id="attRankTbl"></table></div>
+  </div>
 </div>
 
 <!-- ================= TETAPAN ================= -->
@@ -625,6 +630,11 @@ att_preview_title:['Pratonton — {n} rekod dikesan','Preview — {n} records de
 att_pic_name:['PIC Name','PIC Name'],att_pic_branch:['PIC Branch','PIC Branch'],
 att_filter_site:['Tapis Project Site:','Filter Project Site:'],att_all_site:['Semua Project Site','All Project Sites'],
 att_rank_title:['🏆 Attendance Ranking','🏆 Attendance Ranking'],
+att_rank_tab:['🏆 Ranking','🏆 Ranking'],
+att_auto_bulan:['(auto ikut tarikh)','(auto from date)'],
+btn_save:['✔ Simpan','✔ Save'],
+a_att_edit_fill:['Sila isi Tarikh dan Nama.','Please fill in Date and Name.'],
+a_att_edit_ok:['Rekod kehadiran dikemaskini ✔','Attendance record updated ✔'],
 att_rank:['Ranking','Ranking'],att_walkabout:['Walkabout','Walkabout'],att_meeting:['Meeting','Meeting'],att_total:['Total','Total'],
 a_att_notzip:['Fail bukan .xlsx yang sah (bukan format ZIP).','File is not a valid .xlsx (not ZIP format).'],
 a_att_zipbad:['Struktur fail .xlsx tidak disokong.','Unsupported .xlsx file structure.'],
@@ -1369,10 +1379,16 @@ function renderRW(){const f=$('rwFilter').value;
  * — diisi SEKALI di borang, fail Excel cuma perlu senarai Nama+Branch). */
 let attKat='meeting';
 let attPreview=null; /* {rows:[{nama,branch}], headerIdx, nameCol, branchCol} semasa preview sebelum import */
-function attSetKat(k){attKat=k;
- $('attTabMeeting').className=k==='meeting'?'btn':'btn ghost';
- $('attTabWalkabout').className=k==='walkabout'?'btn':'btn ghost';
- $('attLokWrap').style.display=k==='walkabout'?'':'none';
+function attSetView(v){
+ $('attTabMeeting').className=v==='meeting'?'btn':'btn ghost';
+ $('attTabWalkabout').className=v==='walkabout'?'btn':'btn ghost';
+ $('attTabRanking').className=v==='ranking'?'btn':'btn ghost';
+ if(v==='ranking'){
+  $('attMainWrap').style.display='none';$('attRankWrap').style.display='';
+  renderATTRanking();return}
+ $('attMainWrap').style.display='';$('attRankWrap').style.display='none';
+ attKat=v;
+ $('attLokWrap').style.display=v==='walkabout'?'':'none';
  attCancelPreview();renderATT()}
 
 /* --- Jana .xlsx native (ZIP + XML), pasangan xlsxReadFirstSheet() di bawah ---
@@ -1572,6 +1588,21 @@ function attFillLokFilter(){const s=$('attLokFilter');if(!s)return;const v=s.val
  const loks=[...new Set((D.attendance||[]).filter(r=>r.kategori==='walkabout').map(r=>r.lokasi).filter(Boolean))].sort();
  s.innerHTML=`<option value="">${T('att_all_site')}</option>`+loks.map(l=>`<option>${esc(l)}</option>`).join('');
  s.value=loks.includes(v)?v:''}
+let attEditId=null;
+function attEditRow(id){attEditId=id;renderATT()}
+function attCancelEditRow(){attEditId=null;renderATT()}
+function attSaveRow(id,btn){
+ const r=D.attendance.find(x=>x.id===id);if(!r)return;
+ const tr=btn.closest('tr');
+ const tarikh=tr.querySelector('.attEdTarikh').value;
+ const nama=tr.querySelector('.attEdNama').value.trim();
+ const branch=tr.querySelector('.attEdBranch').value.trim();
+ const lokInp=tr.querySelector('.attEdLokasi');
+ if(!tarikh||!nama)return alert(T('a_att_edit_fill'));
+ r.tarikh=tarikh;r.bulan=tarikh.slice(0,7);r.nama=nama;r.branch=branch;
+ if(lokInp)r.lokasi=lokInp.value.trim();
+ r.updatedAt=Date.now();
+ attEditId=null;save();alert(T('a_att_edit_ok'))}
 function renderATT(){
  const mf=$('attMonthFilter')?$('attMonthFilter').value:'',sf=$('attSiteFilter')?$('attSiteFilter').value:'',
   lf=$('attLokFilter')?$('attLokFilter').value:'',
@@ -1585,8 +1616,19 @@ function renderATT(){
  if(showLok&&lf)rows=rows.filter(r=>r.lokasi===lf);
  if(q)rows=rows.filter(r=>[r.nama,r.lokasi].some(v=>String(v||'').toLowerCase().includes(q)));
  $('attTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>${T('lbl_bulan')}</th>${showLok?`<th>${T('att_lokasi')}</th>`:''}<th>${T('att_pic_name')}</th><th>${T('att_pic_branch')}</th><th></th></tr>`+
-  rows.map(r=>`<tr><td>${r.tarikh}</td><td>${mLbl(r.bulan)}</td>${showLok?`<td>${esc(r.lokasi)||'-'}</td>`:''}<td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td>
-  <td><button class="btn red sml" onclick="delItem('attendance','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="${showLok?6:5}" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`;
+  rows.map(r=>{
+   if(attEditId===r.id){
+    return`<tr>
+     <td><input type="date" class="attEdTarikh" value="${r.tarikh}" style="width:145px"></td>
+     <td class="sub">${T('att_auto_bulan')}</td>
+     ${showLok?`<td><input type="text" class="attEdLokasi" value="${esc(r.lokasi)||''}" style="width:150px"></td>`:''}
+     <td><input type="text" class="attEdNama" value="${esc(r.nama)}" style="width:150px"></td>
+     <td><input type="text" class="attEdBranch" value="${esc(r.branch)||''}" style="width:100px"></td>
+     <td style="white-space:nowrap"><button class="btn sml" onclick="attSaveRow('${r.id}',this)">${T('btn_save')}</button> <button class="btn ghost sml" onclick="attCancelEditRow()">${T('btn_cancel')}</button></td>
+    </tr>`}
+   return`<tr><td>${r.tarikh}</td><td>${mLbl(r.bulan)}</td>${showLok?`<td>${esc(r.lokasi)||'-'}</td>`:''}<td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td>
+   <td style="white-space:nowrap"><button class="btn yel sml" onclick="attEditRow('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('attendance','${r.id}')">✕</button></td></tr>`
+  }).join('')||`<tr><td colspan="${showLok?6:5}" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`;
  renderATTRanking()}
 function renderATTRanking(){
  const mf=$('attRkMonthFilter')?$('attRkMonthFilter').value:'',sf=$('attRkSiteFilter')?$('attRkSiteFilter').value:'';
