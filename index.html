@@ -427,6 +427,7 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <select id="attRkMonthFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
     <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
     <select id="attRkSiteFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+    <input type="text" id="attRkSearch" oninput="renderATTRanking()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
   </div>
   <div class="tblwrap"><table id="attRankTbl"></table></div>
   </div>
@@ -1631,7 +1632,8 @@ function renderATT(){
   }).join('')||`<tr><td colspan="${showLok?6:5}" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`;
  renderATTRanking()}
 function renderATTRanking(){
- const mf=$('attRkMonthFilter')?$('attRkMonthFilter').value:'',sf=$('attRkSiteFilter')?$('attRkSiteFilter').value:'';
+ const mf=$('attRkMonthFilter')?$('attRkMonthFilter').value:'',sf=$('attRkSiteFilter')?$('attRkSiteFilter').value:'',
+  q=($('attRkSearch')?$('attRkSearch').value:'').trim().toLowerCase();
  let rows=(D.attendance||[]);
  if(mf)rows=rows.filter(r=>r.bulan===mf);
  if(sf)rows=rows.filter(r=>r.branch===sf);
@@ -1642,11 +1644,13 @@ function renderATTRanking(){
   if(r.kategori==='walkabout')map[key].walkabout++;else map[key].meeting++;
   if(r.branch)map[key].branch=r.branch;
  });
- const list=Object.values(map).map(x=>({...x,total:x.walkabout+x.meeting}));
+ let list=Object.values(map).map(x=>({...x,total:x.walkabout+x.meeting}));
  list.sort((a,b)=>b.total-a.total||b.walkabout-a.walkabout||a.nama.localeCompare(b.nama));
+ list=list.map((r,i)=>({...r,rank:i+1}));
+ if(q)list=list.filter(r=>[r.nama,r.branch].some(v=>String(v||'').toLowerCase().includes(q)));
  $('attRankTbl').innerHTML=`<tr><th>${T('att_rank')}</th><th>${T('att_pic_name')}</th><th>${T('att_pic_branch')}</th><th>${T('att_walkabout')}</th><th>${T('att_meeting')}</th><th>${T('att_total')}</th></tr>`+
-  list.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td><td>${r.walkabout}</td><td>${r.meeting}</td>
-  <td><span class="tag ${i===0?'g':'y'}">${r.total}</span></td></tr>`).join('')||`<tr><td colspan="6" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
+  list.map(r=>`<tr><td><b>${r.rank}</b></td><td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td><td>${r.walkabout}</td><td>${r.meeting}</td>
+  <td><span class="tag ${r.rank===1?'g':'y'}">${r.total}</span></td></tr>`).join('')||`<tr><td colspan="6" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
 
 /* pengurusan ID penilai (admin) */
 function addUser(){const uid_=$('stUid').value.trim(),n=$('stUname').value.trim(),p=$('stUpass').value;
