@@ -417,6 +417,14 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     <input type="text" id="attSearch" oninput="renderATT()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
   </div>
   <div class="tblwrap"><table id="attTbl"></table></div>
+  <h2 class="sec" data-i18n="att_rank_title">🏆 Attendance Ranking</h2>
+  <div class="tools">
+    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="attRkMonthFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
+    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="attRkSiteFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
+  </div>
+  <div class="tblwrap"><table id="attRankTbl"></table></div>
 </div>
 
 <!-- ================= TETAPAN ================= -->
@@ -616,6 +624,8 @@ att_import_btn:['✔ Import Rekod','✔ Import Records'],
 att_preview_title:['Pratonton — {n} rekod dikesan','Preview — {n} records detected'],
 att_pic_name:['PIC Name','PIC Name'],att_pic_branch:['PIC Branch','PIC Branch'],
 att_filter_site:['Tapis Project Site:','Filter Project Site:'],att_all_site:['Semua Project Site','All Project Sites'],
+att_rank_title:['🏆 Attendance Ranking','🏆 Attendance Ranking'],
+att_rank:['Ranking','Ranking'],att_walkabout:['Walkabout','Walkabout'],att_meeting:['Meeting','Meeting'],att_total:['Total','Total'],
 a_att_notzip:['Fail bukan .xlsx yang sah (bukan format ZIP).','File is not a valid .xlsx (not ZIP format).'],
 a_att_zipbad:['Struktur fail .xlsx tidak disokong.','Unsupported .xlsx file structure.'],
 a_att_zipmethod:['Kaedah mampatan fail tidak disokong.','Unsupported file compression method.'],
@@ -1576,7 +1586,25 @@ function renderATT(){
  if(q)rows=rows.filter(r=>[r.nama,r.lokasi].some(v=>String(v||'').toLowerCase().includes(q)));
  $('attTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>${T('lbl_bulan')}</th>${showLok?`<th>${T('att_lokasi')}</th>`:''}<th>${T('att_pic_name')}</th><th>${T('att_pic_branch')}</th><th></th></tr>`+
   rows.map(r=>`<tr><td>${r.tarikh}</td><td>${mLbl(r.bulan)}</td>${showLok?`<td>${esc(r.lokasi)||'-'}</td>`:''}<td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td>
-  <td><button class="btn red sml" onclick="delItem('attendance','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="${showLok?6:5}" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
+  <td><button class="btn red sml" onclick="delItem('attendance','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="${showLok?6:5}" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`;
+ renderATTRanking()}
+function renderATTRanking(){
+ const mf=$('attRkMonthFilter')?$('attRkMonthFilter').value:'',sf=$('attRkSiteFilter')?$('attRkSiteFilter').value:'';
+ let rows=(D.attendance||[]);
+ if(mf)rows=rows.filter(r=>r.bulan===mf);
+ if(sf)rows=rows.filter(r=>r.branch===sf);
+ const map={};
+ rows.forEach(r=>{
+  const key=(r.nama||'').trim().toLowerCase();if(!key)return;
+  if(!map[key])map[key]={nama:r.nama,branch:r.branch,walkabout:0,meeting:0};
+  if(r.kategori==='walkabout')map[key].walkabout++;else map[key].meeting++;
+  if(r.branch)map[key].branch=r.branch;
+ });
+ const list=Object.values(map).map(x=>({...x,total:x.walkabout+x.meeting}));
+ list.sort((a,b)=>b.total-a.total||b.walkabout-a.walkabout||a.nama.localeCompare(b.nama));
+ $('attRankTbl').innerHTML=`<tr><th>${T('att_rank')}</th><th>${T('att_pic_name')}</th><th>${T('att_pic_branch')}</th><th>${T('att_walkabout')}</th><th>${T('att_meeting')}</th><th>${T('att_total')}</th></tr>`+
+  list.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(r.nama)}</td><td>${esc(r.branch)||'-'}</td><td>${r.walkabout}</td><td>${r.meeting}</td>
+  <td><span class="tag ${i===0?'g':'y'}">${r.total}</span></td></tr>`).join('')||`<tr><td colspan="6" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
 
 /* pengurusan ID penilai (admin) */
 function addUser(){const uid_=$('stUid').value.trim(),n=$('stUname').value.trim(),p=$('stUpass').value;
@@ -1643,13 +1671,14 @@ function fillMonthFilter(id,arr,ymOf){const s=$(id);if(!s)return;const v=s.value
  s.value=yms.includes(v)?v:''}
 function fillListFilters(){
  fillSiteFilter('mhSiteFilter');fillSiteFilter('rpSiteFilter');fillSiteFilter('pgSiteFilter');
- fillSiteFilter('svSiteFilter');fillSiteFilter('rwSiteFilter');fillSiteFilter('attSiteFilter');
+ fillSiteFilter('svSiteFilter');fillSiteFilter('rwSiteFilter');fillSiteFilter('attSiteFilter');fillSiteFilter('attRkSiteFilter');
  fillMonthFilter('mhMonthFilter',D.manhours,r=>r.bulan);
  fillMonthFilter('rpMonthFilter',D.reports,r=>r.bulan);
  fillMonthFilter('pgMonthFilter',D.programs,r=>r.tarikh?r.tarikh.slice(0,7):'');
  fillMonthFilter('svMonthFilter',D.inspections||[],r=>r.tarikh?r.tarikh.slice(0,7):'');
  fillMonthFilter('rwMonthFilter',D.rewards||[],r=>r.bulan);
- fillMonthFilter('attMonthFilter',D.attendance||[],r=>r.bulan)}
+ fillMonthFilter('attMonthFilter',D.attendance||[],r=>r.bulan);
+ fillMonthFilter('attRkMonthFilter',D.attendance||[],r=>r.bulan)}
 function renderDash(){
  const filterSite=$('dSiteFilter')?$('dSiteFilter').value:'';
  const bySite=arr=>filterSite?arr.filter(r=>r.site===filterSite):arr;
