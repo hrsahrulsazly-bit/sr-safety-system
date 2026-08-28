@@ -1,0 +1,10 @@
+﻿# PDF syarikat - JANGAN masuk repo public
+docs/*.pdf
+
+# sampah OS / editor
+Thumbs.db
+.DS_Store
+*.stale*
+
+# folder lama yang kini kosong
+sr-safety-system/
