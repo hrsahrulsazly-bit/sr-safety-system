@@ -187,7 +187,7 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
       <div class="sub"><span id="dHariTitle">Jumlah Hari:</span> <b id="dHariYTD">0</b></div></div>
     <div class="card"><h3 data-i18n="d_rep">Report Bulanan Diterima</h3><div class="big" id="dLTI">0</div><div class="sub" id="dNM"></div></div>
     <div class="card"><h3 data-i18n="d_prog">Program Safety</h3><div class="big" id="dProg">0</div><div class="sub" id="dProgSub"></div></div>
-    <div class="card"><h3 id="dLTITitle">Kes LTI</h3><div class="big" id="dLTICount">0</div><div class="sub" id="dLTISub"></div></div>
+    <div class="card"><h3 id="dLTITitle">Kes LTI</h3><div class="big" id="dLTICount">0</div><div class="sub" id="dLTISub"></div><div class="sub" id="dLTIDetail" style="margin-top:6px;line-height:1.6"></div></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
     <div class="card"><h3 data-i18n="d_chart">Manhour Bulanan</h3><div class="chart" id="dChart"></div></div>
@@ -539,6 +539,7 @@ lti_sub:['⚠️ Ada kemalangan direkod — semak Remark','⚠️ Accident(s) re
 lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this year'],
 lti_bar_tt:['⚠️ {n} kes LTI bulan ini','⚠️ {n} LTI case(s) this month'],
 lti_bar_pre_tt:['Sebelum kes LTI direkod','Before an LTI case was recorded'],
+lti_detail_line:['⚠️ {site} — {bulan}: {n} kes, {jam} manhour','⚠️ {site} — {bulan}: {n} case(s), {jam} manhour'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
 btn_update_mh:['✔ Kemaskini Manhour','✔ Update Manhours'],btn_cancel:['Batal','Cancel'],btn_edit:['✎ Edit','✎ Edit'],
 btn_update_rw:['✔ Kemaskini Penilaian','✔ Update Rating'],
@@ -1843,6 +1844,13 @@ function renderDash(){
  const ltiY=mhY.reduce((t,r)=>t+(r.lti||0),0);
  $('dLTICount').textContent=fmt(ltiY);$('dLTICount').style.color=ltiY>0?'var(--red)':'var(--grn)';
  $('dLTISub').textContent=ltiY>0?T('lti_sub'):T('lti_none_sub');
+ /* pecahan site + bulan + manhour bagi setiap rekod yang ada kes LTI —
+  * jawab terus "site mana kena LTI, berapa manhour dikenakan" tanpa perlu
+  * cari manual dalam senarai Safety Manhour. */
+ const ltiRecs=mhY.filter(r=>(r.lti||0)>0).sort((a,b)=>a.bulan.localeCompare(b.bulan));
+ $('dLTIDetail').innerHTML=ltiRecs.map(r=>T('lti_detail_line')
+  .replace('{site}','<b>'+esc(r.site)+'</b>').replace('{bulan}',mLbl(r.bulan))
+  .replace('{n}',r.lti).replace('{jam}',fmt(r.jam))).join('<br>');
  /* chart */
  const byM=Array(12).fill(0);const ltiByM=Array(12).fill(0);
  mhY.forEach(r=>{const i=+r.bulan.split('-')[1]-1;byM[i]+=r.jam;ltiByM[i]+=(r.lti||0)});
