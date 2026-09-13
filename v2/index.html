@@ -57,6 +57,7 @@ body.dark .btn.ghost{color:#4ade80;border-color:#4ade80}
 .chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
 .chart .col .barWrap{flex:1 1 0;display:flex;align-items:flex-end;justify-content:center;width:100%;min-height:0}
 .chart .col .barWrap>div{width:100%;max-width:44px;background:linear-gradient(180deg,#2fa77f,var(--pri));border-radius:5px 5px 0 0;min-height:2px}
+.chart .col .barWrap>div.lti{background:linear-gradient(180deg,#f87171,var(--red))}
 .chart .col span{font-size:10px;color:var(--mut);margin-top:4px}
 .chart .col b{font-size:10px;color:var(--pri2)}
 .stars{color:var(--acc);font-size:15px;letter-spacing:1px}
@@ -535,6 +536,7 @@ d_lti_y:['Kes LTI ({y})','LTI Cases ({y})'],
 lti_none:['Tiada','None'],
 lti_sub:['⚠️ Ada kemalangan direkod — semak Remark','⚠️ Accident(s) recorded — check Remark'],
 lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this year'],
+lti_bar_tt:['⚠️ {n} kes LTI bulan ini','⚠️ {n} LTI case(s) this month'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
 btn_update_mh:['✔ Kemaskini Manhour','✔ Update Manhours'],btn_cancel:['Batal','Cancel'],btn_edit:['✎ Edit','✎ Edit'],
 btn_update_rw:['✔ Kemaskini Penilaian','✔ Update Rating'],
@@ -1840,9 +1842,10 @@ function renderDash(){
  $('dLTICount').textContent=fmt(ltiY);$('dLTICount').style.color=ltiY>0?'var(--red)':'var(--grn)';
  $('dLTISub').textContent=ltiY>0?T('lti_sub'):T('lti_none_sub');
  /* chart */
- const byM=Array(12).fill(0);mhY.forEach(r=>{byM[+r.bulan.split('-')[1]-1]+=r.jam});
+ const byM=Array(12).fill(0);const ltiByM=Array(12).fill(0);
+ mhY.forEach(r=>{const i=+r.bulan.split('-')[1]-1;byM[i]+=r.jam;ltiByM[i]+=(r.lti||0)});
  const mx=Math.max(...byM,1);
- $('dChart').innerHTML=byM.map((v,i)=>`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div class="barWrap"><div style="height:${Math.round(v/mx*100)}%"></div></div><span>${BLN[i]}</span></div>`).join('');
+ $('dChart').innerHTML=byM.map((v,i)=>`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div class="barWrap"><div class="${ltiByM[i]>0?'lti':''}" style="height:${Math.round(v/mx*100)}%" title="${ltiByM[i]>0?T('lti_bar_tt').replace('{n}',ltiByM[i]):''}"></div></div><span>${BLN[i]}</span></div>`).join('');
  /* upcoming */
  const today=todayStr();
  const up=progFiltered.filter(p=>p.status==='Dirancang'&&p.tarikh>=today).sort((a,b)=>a.tarikh.localeCompare(b.tarikh)).slice(0,5);
