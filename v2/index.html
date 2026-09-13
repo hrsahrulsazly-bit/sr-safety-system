@@ -58,6 +58,7 @@ body.dark .btn.ghost{color:#4ade80;border-color:#4ade80}
 .chart .col .barWrap{flex:1 1 0;display:flex;align-items:flex-end;justify-content:center;width:100%;min-height:0}
 .chart .col .barWrap>div{width:100%;max-width:44px;background:linear-gradient(180deg,#2fa77f,var(--pri));border-radius:5px 5px 0 0;min-height:2px}
 .chart .col .barWrap>div.lti{background:linear-gradient(180deg,#f87171,var(--red))}
+.chart .col .barWrap>div.pre-lti{background:linear-gradient(180deg,#fbbf24,var(--yel))}
 .chart .col span{font-size:10px;color:var(--mut);margin-top:4px}
 .chart .col b{font-size:10px;color:var(--pri2)}
 .stars{color:var(--acc);font-size:15px;letter-spacing:1px}
@@ -537,6 +538,7 @@ lti_none:['Tiada','None'],
 lti_sub:['⚠️ Ada kemalangan direkod — semak Remark','⚠️ Accident(s) recorded — check Remark'],
 lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this year'],
 lti_bar_tt:['⚠️ {n} kes LTI bulan ini','⚠️ {n} LTI case(s) this month'],
+lti_bar_pre_tt:['Sebelum kes LTI direkod','Before an LTI case was recorded'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
 btn_update_mh:['✔ Kemaskini Manhour','✔ Update Manhours'],btn_cancel:['Batal','Cancel'],btn_edit:['✎ Edit','✎ Edit'],
 btn_update_rw:['✔ Kemaskini Penilaian','✔ Update Rating'],
@@ -1845,7 +1847,15 @@ function renderDash(){
  const byM=Array(12).fill(0);const ltiByM=Array(12).fill(0);
  mhY.forEach(r=>{const i=+r.bulan.split('-')[1]-1;byM[i]+=r.jam;ltiByM[i]+=(r.lti||0)});
  const mx=Math.max(...byM,1);
- $('dChart').innerHTML=byM.map((v,i)=>`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div class="barWrap"><div class="${ltiByM[i]>0?'lti':''}" style="height:${Math.round(v/mx*100)}%" title="${ltiByM[i]>0?T('lti_bar_tt').replace('{n}',ltiByM[i]):''}"></div></div><span>${BLN[i]}</span></div>`).join('');
+ /* bulan sebelum kes LTI PERTAMA site ditapis jadi kuning (amaran "sebelum
+  * insiden") — hanya bermakna bila SATU site ditapis (bukan Semua Site,
+  * sebab LTI ni khusus kepada site tu, bukan gabungan semua site). */
+ const firstLtiIdx=filterSite?ltiByM.findIndex(n=>n>0):-1;
+ $('dChart').innerHTML=byM.map((v,i)=>{
+  const cls=ltiByM[i]>0?'lti':(firstLtiIdx>=0&&i<firstLtiIdx?'pre-lti':'');
+  const tt=ltiByM[i]>0?T('lti_bar_tt').replace('{n}',ltiByM[i]):(cls==='pre-lti'?T('lti_bar_pre_tt'):'');
+  return`<div class="col"><b>${v?fmt(Math.round(v/1000))+'k':''}</b><div class="barWrap"><div class="${cls}" style="height:${Math.round(v/mx*100)}%" title="${tt}"></div></div><span>${BLN[i]}</span></div>`
+ }).join('');
  /* upcoming */
  const today=todayStr();
  const up=progFiltered.filter(p=>p.status==='Dirancang'&&p.tarikh>=today).sort((a,b)=>a.tarikh.localeCompare(b.tarikh)).slice(0,5);
