@@ -105,16 +105,18 @@ footer{text-align:center;font-size:11px;color:var(--mut);padding:20px}
  .btn.sml{padding:5px 8px;font-size:11px}
  /* elak auto-zoom iOS bila fokus input */
  input,select,textarea{font-size:16px;padding:10px}
- /* kotak Tapis Tahun/Bulan/Site (dashboard) — 3 lajur padat drpd bertindih
-  bergolek 3-4 baris; select KEKAL 16px (jangan kecilkan, nanti iOS zoom
-  auto bila fokus) — kepadatan datang dari grid+label kecil, bukan font. */
- .dashFilters{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
- .dashFilters .fgroup{flex-direction:column;align-items:stretch;gap:2px;min-width:0}
- .dashFilters .fgroup label{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- /* select ada inline style min-width:100/150/160px (utk layout desktop) —
+ /* Baris Tapis (Tahun/Bulan/Site/Jenis/Status/Cari, serata modul) — grid
+  padat drpd bertindih bergolek 3-4 baris; select/input KEKAL 16px (jangan
+  kecilkan, nanti iOS zoom auto bila fokus) — kepadatan datang dari
+  grid+label kecil, bukan font. auto-fit supaya baris 2-item (cth Cari
+  sahaja) regang penuh, bukan tinggal 1/3 kosong macam repeat(3,1fr) tetap. */
+ .filterRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;width:100%}
+ .filterRow .fgroup{flex-direction:column;align-items:stretch;gap:2px;min-width:0}
+ .filterRow .fgroup label{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ /* select/input ada inline style min-width:Npx (utk layout desktop) —
   * inline style menang atas class biasa, jadi WAJIB !important di sini utk
   * betul2 kecilkan dia kepada lebar lajur grid pada mobile. */
- .dashFilters select{width:100%!important;min-width:0!important;padding:8px 4px}
+ .filterRow select,.filterRow input{width:100%!important;min-width:0!important;padding:8px 4px}
  label{font-size:11px}
  .form{grid-template-columns:1fr 1fr;gap:8px}
  .svItem{padding:10px}
@@ -208,7 +210,7 @@ window.addEventListener('appinstalled', function () {
 
 <!-- ================= DASHBOARD ================= -->
 <div class="page active" id="dash">
-  <div class="tools dashFilters" style="justify-content:flex-end">
+  <div class="tools filterRow" style="justify-content:flex-end">
     <div class="fgroup"><label style="font-size:12px;font-weight:600;color:var(--mut);margin:0" data-i18n="d_filter_yr">Tapis Tahun:</label>
     <select id="dYearFilter" onchange="renderDash()" style="width:auto;min-width:100px"></select></div>
     <div class="fgroup"><label style="font-size:12px;font-weight:600;color:var(--mut);margin:0" data-i18n="d_filter_mth">Tapis Bulan:</label>
@@ -257,12 +259,12 @@ window.addEventListener('appinstalled', function () {
     <div class="sub" style="margin-top:8px" data-i18n="mh_note">⚠️ Manhour report perlu dimasukkan sebelum 7hb bulan berikutnya (cth: manhour June — sebelum 7hb July).</div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('manhours')">⬇ Export Excel (CSV)</button><span class="sub"><span data-i18n="cum_year">Kumulatif tahun ini:</span> <b id="mhYTD">0</b> / <span id="mhTgt">1,200,000</span></span></div>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="mhMonthFilter" onchange="renderMH()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="mhSiteFilter" onchange="renderMH()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <input type="text" id="mhSearch" oninput="renderMH()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="mhMonthFilter" onchange="renderMH()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="mhSiteFilter" onchange="renderMH()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <div class="fgroup"><input type="text" id="mhSearch" oninput="renderMH()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tblwrap"><table id="mhTbl"></table></div>
 </div>
@@ -281,12 +283,12 @@ window.addEventListener('appinstalled', function () {
     <div class="sub" style="margin-top:8px" data-i18n="rp_note">⚠️ Upload report PDF sebelum 7hb bulan berikutnya (cth: report June — sebelum 7hb July). Saiz maksimum: 3MB.</div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('reports')" data-i18n="export_list">⬇ Export Senarai (CSV)</button></div>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="rpMonthFilter" onchange="renderRP()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="rpSiteFilter" onchange="renderRP()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <input type="text" id="rpSearch" oninput="renderRP()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="rpMonthFilter" onchange="renderRP()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="rpSiteFilter" onchange="renderRP()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <div class="fgroup"><input type="text" id="rpSearch" oninput="renderRP()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tblwrap"><table id="rpTbl"></table></div>
 </div>
@@ -316,18 +318,18 @@ window.addEventListener('appinstalled', function () {
     </div>
   </div>
   <h2 class="sec" data-i18n="sv_list">Senarai Report Site Visit</h2>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="svMonthFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="svSiteFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="f_type">Jenis:</label>
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="svMonthFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="svSiteFilter" onchange="renderSV()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="f_type">Jenis:</label>
     <select id="svJenisFilter" onchange="renderSV()" style="width:auto;min-width:120px">
       <option value="" data-i18n="f_all_type">Semua Jenis</option>
       <option value="site" data-i18n="sv_site_opt">Site / Tapak Kerja</option>
       <option value="store" data-i18n="sv_store_opt">Store / Pejabat</option>
-    </select>
-    <input type="text" id="svSearch" oninput="renderSV()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+    </select></div>
+    <div class="fgroup"><input type="text" id="svSearch" oninput="renderSV()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tools">
     <button class="btn ghost sml" onclick="mergeSelectedSV()" data-i18n="sv_merge_btn">📎 Cantumkan PDF Terpilih</button>
@@ -352,19 +354,19 @@ window.addEventListener('appinstalled', function () {
     <div class="tools"><button class="btn" onclick="addPG()" data-i18n="pg_save">+ Simpan Program</button></div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('programs')">⬇ Export Excel (CSV)</button></div>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="pgMonthFilter" onchange="renderPG()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="pgSiteFilter" onchange="renderPG()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="f_status">Status:</label>
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="pgMonthFilter" onchange="renderPG()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="pgSiteFilter" onchange="renderPG()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="f_status">Status:</label>
     <select id="pgStatusFilter" onchange="renderPG()" style="width:auto;min-width:130px">
       <option value="" data-i18n="f_all_status">Semua Status</option>
       <option value="Dirancang" data-i18n="st_plan">Dirancang</option>
       <option value="Selesai" data-i18n="st_done">Selesai</option>
       <option value="Ditangguh" data-i18n="st_post">Ditangguh</option>
-    </select>
-    <input type="text" id="pgSearch" oninput="renderPG()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+    </select></div>
+    <div class="fgroup"><input type="text" id="pgSearch" oninput="renderPG()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tblwrap"><table id="pgTbl"></table></div>
 </div>
@@ -415,12 +417,12 @@ window.addEventListener('appinstalled', function () {
       <option value="branch">Best Safety Branch</option></select>
     <button class="btn ghost sml" onclick="csv('rewards')">⬇ Export Excel (CSV)</button>
   </div>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="rwMonthFilter" onchange="renderRW()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="rwSiteFilter" onchange="renderRW()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <input type="text" id="rwSearch" oninput="renderRW()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="rwMonthFilter" onchange="renderRW()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="rwSiteFilter" onchange="renderRW()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <div class="fgroup"><input type="text" id="rwSearch" oninput="renderRW()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tblwrap"><table id="rwTbl"></table></div>
 </div>
@@ -459,27 +461,27 @@ window.addEventListener('appinstalled', function () {
   </div>
   <h2 class="sec" data-i18n="att_list">Senarai Kehadiran</h2>
   <div class="tools"><button class="btn ghost sml" onclick="csv('attendance')">⬇ Export Excel (CSV)</button></div>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="attMonthFilter" onchange="renderATT()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="attSiteFilter" onchange="renderATT()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <span id="attLokFilterWrap" style="display:none;gap:8px;align-items:center">
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="attMonthFilter" onchange="renderATT()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="attSiteFilter" onchange="renderATT()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <span id="attLokFilterWrap" class="fgroup" style="display:none">
       <label class="sub" style="font-weight:600" data-i18n="att_filter_site">Tapis Project Site:</label>
       <select id="attLokFilter" onchange="renderATT()" style="width:auto;min-width:170px"><option value="" data-i18n="att_all_site">Semua Project Site</option></select>
     </span>
-    <input type="text" id="attSearch" oninput="renderATT()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+    <div class="fgroup"><input type="text" id="attSearch" oninput="renderATT()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tblwrap"><table id="attTbl"></table></div>
   </div>
   <div id="attRankWrap" style="display:none">
   <h2 class="sec" data-i18n="att_rank_title">🏆 Attendance Ranking</h2>
-  <div class="tools">
-    <label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
-    <select id="attRkMonthFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select>
-    <label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
-    <select id="attRkSiteFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select>
-    <input type="text" id="attRkSearch" oninput="renderATTRanking()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px">
+  <div class="tools filterRow">
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter_mth">Tapis Bulan:</label>
+    <select id="attRkMonthFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="f_all_month">Semua Bulan</option></select></div>
+    <div class="fgroup"><label class="sub" style="font-weight:600" data-i18n="d_filter">Tapis Site:</label>
+    <select id="attRkSiteFilter" onchange="renderATTRanking()" style="width:auto;min-width:150px"><option value="" data-i18n="d_filter_all">Semua Site</option></select></div>
+    <div class="fgroup"><input type="text" id="attRkSearch" oninput="renderATTRanking()" data-i18n-ph="f_search_ph" placeholder="Cari..." style="width:auto;min-width:180px"></div>
   </div>
   <div class="tblwrap"><table id="attRankTbl"></table></div>
   </div>
@@ -1740,7 +1742,7 @@ function renderATT(){
   q=($('attSearch')?$('attSearch').value:'').trim().toLowerCase();
  const showLok=attKat==='walkabout';
  attFillLokFilter();
- $('attLokFilterWrap').style.display=showLok?'contents':'none';
+ $('attLokFilterWrap').style.display=showLok?'flex':'none';
  let rows=(D.attendance||[]).filter(r=>r.kategori===attKat).sort((a,b)=>b.tarikh.localeCompare(a.tarikh));
  if(mf)rows=rows.filter(r=>r.bulan===mf);
  if(sf)rows=rows.filter(r=>r.branch===sf);
