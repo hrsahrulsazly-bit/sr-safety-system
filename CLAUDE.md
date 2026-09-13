@@ -97,6 +97,12 @@ Buka `SR-Group-Safety-System.html` terus dalam browser (double-click). Tiada bui
     `docs/vercel/SETUP-VERCEL.md` — hos fail statik terus (tiada wrapper,
     tiada isu extension), lebih stabil untuk akses sistem dari satu URL
     dikongsi semua site. Backend tetap Apps Script (sync tak berubah).
+  - **Hosting terus dari server Linux sendiri (pilihan)**: `docs/linux/SETUP-LINUX.md`
+    — Nginx + `git clone` repo GitHub terus ke `/var/www/`, akses via IP
+    server (`http://IP-SERVER`) tanpa domain/HTTPS buat masa ini. Backend
+    (Apps Script) & fail sama persis dengan Vercel — boleh jalan SERENTAK
+    dengan Vercel (dua URL, satu data, tiada konflik). Kemas kini guna
+    `git pull` di server (bukan copy-paste manual).
   - **Script Property `SHEET_ID`** (pilihan): jika projek Apps Script bukan
     "bound" terus ke Sheet (dibuka dari Drive/URL berasingan), `getSS()` guna
     `SHEET_ID` untuk `openById()` — tanpanya Sheet kekal kosong walaupun sync
