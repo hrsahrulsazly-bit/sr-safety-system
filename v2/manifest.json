@@ -1,0 +1,28 @@
+{
+  "name": "SR Group Safety System",
+  "short_name": "SR Safety",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d6e4f",
+  "theme_color": "#0d6e4f",
+  "icons": [
+    {
+      "src": "./icons/icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512-maskable.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ]
+}
