@@ -8,3 +8,10 @@ Thumbs.db
 
 # folder lama yang kini kosong
 sr-safety-system/
+
+# salinan sandaran tempatan (bukan sebahagian repo)
+_old-docs-backup/
+
+# Vercel CLI (link projek + token tempatan — JANGAN masuk repo)
+.vercel/
+.env*.local
