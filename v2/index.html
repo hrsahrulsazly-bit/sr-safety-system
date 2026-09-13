@@ -131,6 +131,34 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     navigator.serviceWorker.register('./sw.js').catch(function () {});
   });
 }
+// Butang "Install App" — Android/Chrome tangkap beforeinstallprompt (elak
+// bergantung semata pada mini-infobar automatik pelayar, yang tak selalu
+// muncul); disimpan di window supaya boleh dipanggil bila-bila oleh
+// installPWA() (ditakrif kemudian, lepas T()/DICT sedia). iOS Safari tiada
+// beforeinstallprompt langsung — butang ditunjukkan terus di sana (klik ->
+// arahan manual "Add to Home Screen"), melainkan app dah standalone.
+window.__deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window.__deferredInstallPrompt = e;
+  var b = document.getElementById('installBtn');
+  if (b) b.style.display = 'inline-flex';
+});
+window.addEventListener('appinstalled', function () {
+  window.__deferredInstallPrompt = null;
+  var b = document.getElementById('installBtn');
+  if (b) b.style.display = 'none';
+});
+(function () {
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS && !isStandalone) {
+    window.addEventListener('load', function () {
+      var b = document.getElementById('installBtn');
+      if (b) b.style.display = 'inline-flex';
+    });
+  }
+})();
 </script>
 <!-- SR Group Safety v2 — Firebase SDK (compat build, guna <script> tag terus,
      bukan npm/bundler, supaya kekal boleh dibuka sebagai satu fail statik).
@@ -151,6 +179,7 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   <div><h1>SR Group Safety System</h1><p data-i18n="sub_title">Safety Committee — Sistem Pengurusan Keselamatan Online</p></div>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
     <span class="hbtn" id="syncBadge" style="display:none;cursor:default"></span>
+    <button class="hbtn" id="installBtn" style="display:none" onclick="installPWA()" data-i18n="install_btn">📲 Install App</button>
     <button class="hbtn" id="langBtn" onclick="toggleLang()">EN</button>
     <button class="hbtn" id="modeBtn" onclick="toggleMode()">🌙</button>
   </div>
@@ -540,6 +569,8 @@ lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this y
 lti_bar_tt:['⚠️ {n} kes LTI bulan ini','⚠️ {n} LTI case(s) this month'],
 lti_bar_pre_tt:['Sebelum kes LTI direkod','Before an LTI case was recorded'],
 lti_detail_line:['⚠️ {site} — {bulan}: {n} kes, {jam} manhour','⚠️ {site} — {bulan}: {n} case(s), {jam} manhour'],
+install_btn:['📲 Pasang App','📲 Install App'],
+install_ios_hint:['Untuk pasang di iPhone/iPad: tekan butang Share (kotak+anak panah) di Safari, kemudian pilih "Add to Home Screen".','To install on iPhone/iPad: tap the Share button (box with arrow) in Safari, then choose "Add to Home Screen".'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
 btn_update_mh:['✔ Kemaskini Manhour','✔ Update Manhours'],btn_cancel:['Batal','Cancel'],btn_edit:['✎ Edit','✎ Edit'],
 btn_update_rw:['✔ Kemaskini Penilaian','✔ Update Rating'],
@@ -691,6 +722,13 @@ function toggleLang(){UI.lang=UI.lang==='ms'?'en':'ms';saveUI();applyLang()}
 function toggleMode(){UI.dark=!UI.dark;saveUI();applyMode()}
 function applyMode(){document.body.classList.toggle('dark',UI.dark);
  const b=document.getElementById('modeBtn');if(b)b.textContent=UI.dark?'☀️':'🌙'}
+function installPWA(){
+ if(window.__deferredInstallPrompt){
+  const p=window.__deferredInstallPrompt;
+  p.prompt();
+  p.userChoice.finally(()=>{window.__deferredInstallPrompt=null;const b=$('installBtn');if(b)b.style.display='none'});
+  return}
+ alert(T('install_ios_hint'))}
 function applyLang(){BLN=BLNS[UI.lang]||BLNS.ms;
  document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=T(el.getAttribute('data-i18n'))});
  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{el.placeholder=T(el.getAttribute('data-i18n-ph'))});
