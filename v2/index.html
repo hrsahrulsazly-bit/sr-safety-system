@@ -405,6 +405,7 @@ window.addEventListener('appinstalled', function () {
       <div class="tools">
         <button class="btn" id="rwSaveBtn" onclick="addRW()" data-i18n="rw_save">+ Simpan Penilaian</button>
         <button class="btn ghost" id="rwCancelBtn" onclick="cancelEditRW()" style="display:none" data-i18n="btn_cancel">Batal</button>
+        <button class="btn ghost" id="rwCloseBtn" onclick="closeViewRW()" style="display:none" data-i18n="rw_close">Tutup</button>
         <span style="font-size:16px;font-weight:800;color:var(--pri)" id="rwTotal">0 pts</span>
       </div>
     </div>
@@ -665,6 +666,7 @@ rw_logout:['Log Keluar','Log Out'],
 rw_kat:['Kategori','Category'],
 rw_nama:['Nama Calon / Branch','Nominee / Branch'],
 rw_save:['+ Simpan Penilaian','+ Save Rating'],
+rw_view:['👁 Lihat','👁 View'],rw_close:['Tutup','Close'],
 rw_list:['Senarai Penilaian & Ranking','Rating List & Ranking'],
 rw_by:['Penilai','Evaluator'],
 rw_criteria:['Kriteria Penilaian (SR/HSE/SRP/01)','Evaluation Criteria (SR/HSE/SRP/01)'],
@@ -1420,6 +1422,7 @@ let EVAL=null; /* penilai log masuk (sesi semasa sahaja) */
 let RWW=[];
 let RWYN=[]; /* Yes/No penanda rujukan setiap kriteria (ikut jadual proposal) — tak beri kesan kepada Pts, sekadar rekod */
 let rwEditId=null;
+let rwReadOnly=false; /* true bila buka rekod guna Lihat (viewRW) — semua input/butang skor dimatikan, elak tersalah ubah tanpa sengaja */
 function userKats(u){return (u.kats&&u.kats.length)?u.kats:['worker','staff','branch']}
 function rwLogin(){const id=$('rwId').value.trim(),p=$('rwPass').value;
  const u=(D.users||[]).find(x=>x.uid.toLowerCase()===id.toLowerCase()&&x.pass===p);
@@ -1443,13 +1446,13 @@ function buildRW(preset,presetYN){const tpl=RW_TPL[$('rwKat').value]||RW_TPL.wor
  RWYN=presetYN?[...presetYN]:tpl.map(()=>null);
  $('rwList').innerHTML=`<h3 style="margin:14px 0 8px">${T('rw_criteria')}</h3><div class="tblwrap"><table>
   <tr><th>No</th><th>${T('rw_desc')}</th><th>${T('rw_yn')}</th><th>${T('rw_maxpt')}</th><th>${T('rw_input')}</th><th>Pts</th><th>${T('rw_remarks')}</th></tr>
-  ${tpl.map((it,i)=>{const cur=RWW[i]||0;const inputVal=it.type==='eval'?cur:(it.pts?Math.round(cur/it.pts):0);const yn=RWYN[i];
+  ${tpl.map((it,i)=>{const cur=RWW[i]||0;const inputVal=it.type==='eval'?cur:(it.pts?Math.round(cur/it.pts):0);const yn=RWYN[i];const ro=rwReadOnly?'disabled':'';
    return`<tr><td>${i+1}</td><td>${esc(it.q)}</td>
    <td><div class="ansBtns" id="rwyn_${i}" style="justify-content:center">
-    <button class="${yn==='Yes'?'selY':''}" onclick="rwYN(${i},'Yes',this)">${T('yes')}</button>
-    <button class="${yn==='No'?'selN':''}" onclick="rwYN(${i},'No',this)">${T('no')}</button></div></td>
+    <button ${ro} class="${yn==='Yes'?'selY':''}" onclick="rwYN(${i},'Yes',this)">${T('yes')}</button>
+    <button ${ro} class="${yn==='No'?'selN':''}" onclick="rwYN(${i},'No',this)">${T('no')}</button></div></td>
    <td style="text-align:center">${it.type==='eval'?it.max:(it.cap||'-')}</td>
-   <td><input type="number" min="0" ${it.type==='eval'?'max="'+it.max+'"':''} value="${inputVal}" style="width:70px" oninput="rwCalc(${i},this)"></td>
+   <td><input type="number" min="0" ${it.type==='eval'?'max="'+it.max+'"':''} value="${inputVal}" style="width:70px" ${ro} oninput="rwCalc(${i},this)"></td>
    <td id="rwpt_${i}" style="text-align:right;color:var(--pri);font-weight:700">${cur} pts</td>
    <td class="sub">${it.type==='eval'?T('rw_eval'):(it.pts+' '+T('rw_each')+(it.cap?' ('+T('rw_max')+' '+it.cap+')':''))}</td></tr>`}).join('')}
   </table></div>`;
@@ -1464,6 +1467,7 @@ function rwCalc(i,inp){const tpl=RW_TPL[$('rwKat').value]||RW_TPL.worker;const i
  $('rwpt_'+i).textContent=RWW[i]+' pts';rwTotal()}
 function rwTotal(){$('rwTotal').textContent=RWW.reduce((a,b)=>a+b,0)+' pts'}
 function addRW(){
+ if(rwReadOnly)return;
  if(rwEditId){
   if(!(EVAL||adminOK))return;
   const r=D.rewards.find(x=>x.id===rwEditId);if(!r)return;
@@ -1479,19 +1483,36 @@ function addRW(){
  D.rewards.push({id:uid(),kat,nama,site:$('rwSite').value,bulan:$('rwBulan').value,
   by:EVAL.uid,tot,scores:[...RWW],yn:[...RWYN],tarikh:todayStr(),updatedAt:Date.now()});
  save();$('rwNama').value='';buildRW();alert(T('a_rw_ok')+' — '+tot+' pts')}
+function rwSetFormDisabled(dis){['rwKat','rwNama','rwSite','rwBulan'].forEach(id=>{$(id).disabled=dis})}
 function editRW(id){const r=D.rewards.find(x=>x.id===id);if(!r)return;
  if(!(EVAL||adminOK))return;
- rwEditId=id;
+ rwEditId=id;rwReadOnly=false;rwSetFormDisabled(false);
  const s=$('rwKat');
  if(![...s.options].some(o=>o.value===r.kat)){const opt=document.createElement('option');opt.value=r.kat;opt.textContent=rwKatLbl(r.kat);s.appendChild(opt)}
  s.value=r.kat;
  buildRW(r.scores,r.yn);
  $('rwNama').value=r.nama;$('rwSite').value=r.site;$('rwBulan').value=r.bulan;
- $('rwSaveBtn').textContent=T('btn_update_rw');$('rwCancelBtn').style.display='';
+ $('rwSaveBtn').textContent=T('btn_update_rw');$('rwSaveBtn').style.display='';$('rwCancelBtn').style.display='';$('rwCloseBtn').style.display='none';
  $('rwNama').scrollIntoView({behavior:'smooth',block:'center'})}
 function cancelEditRW(){rwEditId=null;
  $('rwNama').value='';rwFillKat();buildRW();
  $('rwSaveBtn').textContent=T('rw_save');$('rwCancelBtn').style.display='none'}
+/* Lihat (read-only) — sama borang macam Edit tapi semua input/butang skor
+ * dimatikan (rwReadOnly) & Simpan/Batal digantikan Tutup sahaja, supaya
+ * boleh semak butiran penuh penilaian tanpa risiko tersalah ubah. */
+function viewRW(id){const r=D.rewards.find(x=>x.id===id);if(!r)return;
+ if(!(EVAL||adminOK))return;
+ rwEditId=null;rwReadOnly=true;rwSetFormDisabled(true);
+ const s=$('rwKat');
+ if(![...s.options].some(o=>o.value===r.kat)){const opt=document.createElement('option');opt.value=r.kat;opt.textContent=rwKatLbl(r.kat);s.appendChild(opt)}
+ s.value=r.kat;
+ buildRW(r.scores,r.yn);
+ $('rwNama').value=r.nama;$('rwSite').value=r.site;$('rwBulan').value=r.bulan;
+ $('rwSaveBtn').style.display='none';$('rwCancelBtn').style.display='none';$('rwCloseBtn').style.display='';
+ $('rwNama').scrollIntoView({behavior:'smooth',block:'center'})}
+function closeViewRW(){rwReadOnly=false;rwSetFormDisabled(false);
+ $('rwNama').value='';rwFillKat();buildRW();
+ $('rwSaveBtn').textContent=T('rw_save');$('rwSaveBtn').style.display='';$('rwCloseBtn').style.display='none'}
 function rwKatLbl(k){return k==='worker'?'Best Safety Worker':k==='staff'?'Best Safety Staff':'Best Safety Branch'}
 function renderRW(){const f=$('rwFilter').value;
  const mf=$('rwMonthFilter')?$('rwMonthFilter').value:'',sf=$('rwSiteFilter')?$('rwSiteFilter').value:'',
@@ -1504,7 +1525,7 @@ function renderRW(){const f=$('rwFilter').value;
   rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td><b>${esc(r.nama)}</b></td><td><span class="tag b">${rwKatLbl(r.kat)}</span></td>
   <td>${esc(r.site)}</td><td>${mLbl(r.bulan)}</td><td>${esc(r.by)}</td><td>${r.tarikh}</td>
   <td><span class="tag ${i===0?'g':'y'}">${r.tot} pts</span></td>
-  <td style="white-space:nowrap">${EVAL||adminOK?`<button class="btn yel sml" onclick="editRW('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('rewards','${r.id}')">✕</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
+  <td style="white-space:nowrap">${EVAL||adminOK?`<button class="btn ghost sml" onclick="viewRW('${r.id}')">${T('rw_view')}</button> <button class="btn yel sml" onclick="editRW('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('rewards','${r.id}')">✕</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" style="text-align:center;color:#999">${T('none_rec')}</td></tr>`}
 
 /* ===== ATTENDANCE REPORT (Safety Meeting / Safety Walkabout) =====
  * Model: satu rekod = SATU orang hadir SATU sesi (id,kategori,bulan,tarikh,
