@@ -351,7 +351,8 @@ window.addEventListener('appinstalled', function () {
       <div><label>Status</label><select id="pgStatus"><option value="Dirancang" data-i18n="st_plan">Dirancang</option><option value="Selesai" data-i18n="st_done">Selesai</option><option value="Ditangguh" data-i18n="st_post">Ditangguh</option></select></div>
     </div>
     <div style="margin-top:10px"><label data-i18n="pg_detail">Detail Program / Objektif / Hasil</label><textarea id="pgDetail" data-i18n-ph="pg_detail_ph" placeholder="Butiran program dengan lebih detail: objektif, skop, penemuan, tindakan susulan..."></textarea></div>
-    <div class="tools"><button class="btn" onclick="addPG()" data-i18n="pg_save">+ Simpan Program</button></div>
+    <div class="tools"><button class="btn" id="pgSaveBtn" onclick="addPG()" data-i18n="pg_save">+ Simpan Program</button>
+    <button class="btn ghost" id="pgCancelBtn" onclick="cancelEditPG()" style="display:none" data-i18n="btn_cancel">Batal</button></div>
   </div>
   <div class="tools"><button class="btn ghost sml" onclick="csv('programs')">⬇ Export Excel (CSV)</button></div>
   <div class="tools filterRow">
@@ -620,7 +621,7 @@ sv_score:['Skor semasa:','Current score:'],
 pg_nama:['Nama Program','Program Name'],pg_pic:['PIC (Penanggungjawab)','PIC (Person In Charge)'],
 pg_detail:['Detail Program / Objektif / Hasil','Program Details / Objectives / Outcome'],
 pg_detail_ph:['Butiran program dengan lebih detail: objektif, skop, penemuan, tindakan susulan...','Detailed program information: objectives, scope, findings, follow-up actions...'],
-pg_save:['+ Simpan Program','+ Save Program'],
+pg_save:['+ Simpan Program','+ Save Program'],pg_update:['✔ Kemaskini Program','✔ Update Program'],
 st_plan:['Dirancang','Planned'],st_done:['Selesai','Completed'],st_post:['Ditangguh','Postponed'],
 st_title:['⚙️ Tetapan Sistem','⚙️ System Settings'],st_sites:['Senarai Site / Projek','Site / Project List'],
 st_add:['+ Tambah','+ Add'],st_target:['Target KPI Manhour Tahunan','Annual Manhour KPI Target'],
@@ -648,6 +649,7 @@ a_rp_exist:['Report bulan ini untuk lokasi ini sudah wujud. Ganti?','A report fo
 a_rp_ok:['Report berjaya diupload ✔','Report uploaded successfully ✔'],
 a_pg_fill:['Sila isi nama program dan tarikh.','Please fill in the program name and date.'],
 a_pg_ok:['Program disimpan ✔','Program saved ✔'],
+a_pg_upd_ok:['Program dikemaskini ✔','Program updated ✔'],
 a_sv_aud:['Sila isi nama auditor (Conducted By).','Please enter the auditor name (Conducted By).'],
 a_sv_pic:['Sila isi nama PIC.','Please enter the PIC name.'],
 a_sv_un:['{n} soalan belum dijawab. Teruskan juga?','{n} questions unanswered. Continue anyway?'],
@@ -1810,10 +1812,25 @@ function renderUsers(){const KL={worker:'Worker',staff:'Staff',branch:'Branch'};
   <button class="btn red sml" onclick="delUser('${u.id}')">✕</button></span></div>`}).join('')||`<span class="sub">${T('no_users')}</span>`}
 
 /* ===== PROGRAM ===== */
+let pgEditId=null;
 function addPG(){const n=$('pgNama').value.trim();if(!n||!$('pgTarikh').value)return alert(T('a_pg_fill'));
+ if(pgEditId){
+  const r=D.programs.find(x=>x.id===pgEditId);
+  if(r){r.nama=n;r.jenis=$('pgJenis').value;r.tarikh=$('pgTarikh').value;r.site=$('pgSite').value;
+   r.pic=$('pgPIC').value;r.status=$('pgStatus').value;r.detail=$('pgDetail').value;r.updatedAt=Date.now()}
+  save();cancelEditPG();alert(T('a_pg_upd_ok'));return}
  D.programs.push({id:uid(),nama:n,jenis:$('pgJenis').value,tarikh:$('pgTarikh').value,site:$('pgSite').value,
   pic:$('pgPIC').value,status:$('pgStatus').value,detail:$('pgDetail').value,updatedAt:Date.now()});
  save();$('pgNama').value='';$('pgPIC').value='';$('pgDetail').value='';alert(T('a_pg_ok'))}
+function editPG(id){const r=D.programs.find(x=>x.id===id);if(!r)return;
+ pgEditId=id;
+ $('pgNama').value=r.nama||'';$('pgJenis').value=r.jenis||'';$('pgTarikh').value=r.tarikh||'';$('pgSite').value=r.site||'';
+ $('pgPIC').value=r.pic||'';$('pgStatus').value=r.status||'Dirancang';$('pgDetail').value=r.detail||'';
+ $('pgSaveBtn').textContent=T('pg_update');$('pgCancelBtn').style.display='';
+ $('pgNama').scrollIntoView({behavior:'smooth',block:'center'})}
+function cancelEditPG(){pgEditId=null;
+ $('pgNama').value='';$('pgPIC').value='';$('pgDetail').value='';$('pgTarikh').value='';
+ $('pgSaveBtn').textContent=T('pg_save');$('pgCancelBtn').style.display='none'}
 function pgTag(s){return s==='Selesai'?'g':s==='Dirancang'?'b':'y'}
 function pgLbl(s){return s==='Selesai'?T('st_done'):s==='Dirancang'?T('st_plan'):s==='Ditangguh'?T('st_post'):s}
 function renderPG(){const mf=$('pgMonthFilter')?$('pgMonthFilter').value:'',sf=$('pgSiteFilter')?$('pgSiteFilter').value:'',
@@ -1826,7 +1843,7 @@ function renderPG(){const mf=$('pgMonthFilter')?$('pgMonthFilter').value:'',sf=$
  $('pgTbl').innerHTML=`<tr><th>${T('th_tarikh')}</th><th>Program</th><th>${T('th_jenis')}</th><th>Site</th><th>PIC</th><th>Status</th><th>${T('th_detail')}</th><th></th></tr>`+
   rows.map(r=>`<tr><td>${r.tarikh}</td><td><b>${esc(r.nama)}</b></td><td>${esc(r.jenis)}</td><td>${esc(r.site)}</td><td>${esc(r.pic)}</td>
   <td><span class="tag ${pgTag(r.status)}">${pgLbl(r.status)}</span></td><td style="max-width:260px">${esc(r.detail)}</td>
-  <td style="white-space:nowrap"><button class="btn yel sml" onclick="togglePG('${r.id}')">↻</button> <button class="btn red sml" onclick="delItem('programs','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:#999">${T('none_prog')}</td></tr>`}
+  <td style="white-space:nowrap"><button class="btn yel sml" onclick="togglePG('${r.id}')">↻</button> <button class="btn yel sml" onclick="editPG('${r.id}')">${T('btn_edit')}</button> <button class="btn red sml" onclick="delItem('programs','${r.id}')">✕</button></td></tr>`).join('')||`<tr><td colspan="8" style="text-align:center;color:#999">${T('none_prog')}</td></tr>`}
 function togglePG(id){const r=D.programs.find(x=>x.id===id);if(!r)return;
  r.status=r.status==='Dirancang'?'Selesai':r.status==='Selesai'?'Ditangguh':'Dirancang';r.updatedAt=Date.now();save()}
 
