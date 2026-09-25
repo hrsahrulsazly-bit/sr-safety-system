@@ -226,7 +226,8 @@ window.addEventListener('appinstalled', function () {
       <div class="sub">Target KPI: <b id="dTarget">1,200,000</b> manhour</div>
       <div class="bar"><div id="dBar" style="width:0%"></div></div>
       <div class="sub" id="dPct">0%</div>
-      <div class="sub"><span id="dHariTitle">Jumlah Hari:</span> <b id="dHariYTD">0</b></div></div>
+      <div class="sub"><span id="dHariTitle">Jumlah Hari:</span> <b id="dHariYTD">0</b></div>
+      <div class="sub" id="dLtiReset" style="color:var(--red);display:none"></div></div>
     <div class="card"><h3 data-i18n="d_rep">Report Bulanan Diterima</h3><div class="big" id="dLTI">0</div><div class="sub" id="dNM"></div></div>
     <div class="card"><h3 data-i18n="d_prog">Program Safety</h3><div class="big" id="dProg">0</div><div class="sub" id="dProgSub"></div></div>
     <div class="card"><h3 id="dLTITitle">Kes LTI</h3><div class="big" id="dLTICount">0</div><div class="sub" id="dLTISub"></div><div class="sub" id="dLTIDetail" style="margin-top:6px;line-height:1.6"></div></div>
@@ -584,6 +585,7 @@ lti_none_sub:['Tiada kemalangan direkod tahun ini','No accidents recorded this y
 lti_bar_tt:['⚠️ {n} kes LTI bulan ini','⚠️ {n} LTI case(s) this month'],
 lti_bar_pre_tt:['Sebelum kes LTI direkod','Before an LTI case was recorded'],
 lti_detail_line:['⚠️ {site} — {bulan}: {n} kes, {jam} manhour','⚠️ {site} — {bulan}: {n} case(s), {jam} manhour'],
+d_lti_reset_note:['↺ Reset selepas LTI (bulan sebelum insiden tak dikira):','↺ Reset after LTI (months before the incident excluded):'],
 install_btn:['📲 Pasang App','📲 Install App'],
 install_ios_hint:['Untuk pasang di iPhone/iPad: tekan butang Share (kotak+anak panah) di Safari, kemudian pilih "Add to Home Screen".','To install on iPhone/iPad: tap the Share button (box with arrow) in Safari, then choose "Add to Home Screen".'],
 btn_save_mh:['+ Simpan Manhour','+ Save Manhours'],
@@ -1914,12 +1916,33 @@ function renderDash(){
  $('dHariTitle').textContent=T('d_hari_y').replace('{y}',selYear);
  $('dLTITitle').textContent=T('d_lti_y').replace('{y}',selYear);
  const mhY=bySite(D.manhours.filter(r=>r.bulan.startsWith(selYear)));
- const tot=mhY.reduce((t,r)=>t+r.jam,0);
- const totHari=mhY.reduce((t,r)=>t+(r.hari||0),0);
+ /* Reset selepas LTI: bulan SEBELUM kes LTI TERKINI sesuatu site tak lagi
+  * dikira dlm Manhour Kumulatif site tu (macam "safe manhour streak" yg
+  * mula semula dari bulan insiden) — site lain yg tiada LTI kekal penuh.
+  * Jumlah "Semua Site" = tolak sahaja bahagian site terjejas, site lain
+  * tak disentuh (per spec pengguna, bukan reset global). */
+ const mhYAllSites=D.manhours.filter(r=>r.bulan.startsWith(selYear));
+ function siteResetSum(site,field){
+  const recs=mhYAllSites.filter(r=>r.site===site);
+  const raw=recs.reduce((s,r)=>s+(r[field]||0),0);
+  const withLti=recs.filter(r=>(r.lti||0)>0);
+  if(!withLti.length)return{val:raw,excluded:0};
+  const lastLtiBulan=withLti.map(r=>r.bulan).sort().slice(-1)[0];
+  const val=recs.filter(r=>r.bulan>=lastLtiBulan).reduce((s,r)=>s+(r[field]||0),0);
+  return{val,excluded:raw-val}}
+ let tot=0,totHari=0;const resetInfo=[];
+ sitesList.forEach(s=>{
+  const rJam=siteResetSum(s,'jam'),rHari=siteResetSum(s,'hari');
+  tot+=rJam.val;totHari+=rHari.val;
+  if(rJam.excluded>0)resetInfo.push({site:s,excluded:rJam.excluded})});
  const tgt=filterSite?(D.siteTargets[filterSite]||D.target):D.target;
  $('dTotalMH').textContent=fmt(tot);$('dTarget').textContent=fmt(tgt);$('dHariYTD').textContent=fmt(totHari);
  const pct=Math.min(100,Math.round(tot/tgt*100));
  $('dBar').style.width=pct+'%';$('dPct').textContent=pct+'% '+T('of_target');
+ const rstEl=$('dLtiReset');
+ if(resetInfo.length){rstEl.style.display='';
+  rstEl.textContent=T('d_lti_reset_note')+' '+resetInfo.map(x=>x.site+' (-'+fmt(x.excluded)+')').join(', ')}
+ else rstEl.style.display='none';
  const rmSel=$('dMonthFilter')?$('dMonthFilter').value:'';
  const rm=rmSel||prevMonth();
  const isCurRM=rm===prevMonth();
